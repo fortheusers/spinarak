@@ -1,0 +1,31 @@
+{
+    "package": "DinoRunNX",
+    "info": {
+        "title": "DinoRunNX",
+        "author": "HarryPeach",
+        "category": "game",
+        "version": "1.1",
+        "url": "https://github.com/HarryPeach/DinoRunNX/releases",
+        "license": "BSD v3",
+        "description": "Port of the Chromium -No Internet Dino- Game",
+        "details": "Switch Dino Runner\\n\\nPort of the Chromium \"No Internet Dino\" game for the Nintendo Switch console. \\nRequires Atmosphere as your CFW.\\n\\nHow to play\\n\\nUp Arrow jumps\\nDown Arrow crouches\\nB exits the application\\nA restarts the game after you fail\\n\\nKnown Issues\\n\\nDino blinks when crouching on the Switch\\n\\nLicense\\n\\nThe core javascript code is modified from the Chromium project and licensed under a BSD-style license. This project is licensed under the BSD3 license."
+    },
+    "changes":"1.1\\n\\nAdded the inverted colours night mode\\nAdded a warning message when launching from the album\\nModified speed and distance coefficient to be more accurate to the chrome version\\n",
+    "assets": [
+        {
+            "url": "https://github.com/HarryPeach/DinoRunNX/releases/download/1.1/DinoRunNX11.zip",
+            "type": "zip",
+            "zip": [
+                {
+                    "path": "/sd/*",
+                    "dest": "/",
+                    "type": "update"
+                }
+            ]
+        },
+        {
+            "url": "https://www.switchbru.com/appstore/packages/DinoRunNX/icon.png",
+            "type": "icon"
+        }
+    ]
+}
