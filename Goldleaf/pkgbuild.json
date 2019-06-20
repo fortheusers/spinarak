@@ -15,7 +15,7 @@
         {
             "url": "https://github.com/XorTroll/Goldleaf/releases/download/0.5/Goldleaf.nro",
             "type": "update",
-            "dest": "/switch/Godleaf/Goldleaf.nro"
+            "dest": "/switch/Goldleaf/Goldleaf.nro"
         },
         {
             "url": "https://www.switchbru.com/appstore/packages/Goldleaf/icon.png",
