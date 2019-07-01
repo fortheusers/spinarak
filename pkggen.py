@@ -8,9 +8,20 @@ version='0.0.1'
 ignored_directories=[".git"]
 output_directory="out"
 
+def underprint(x): print(x+"\n"+('-'*len(x))) #Prints with underline. Classy, eh?
+
+def get_size(start_path): #Thanks stackoverflow, modified example to get directory size
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size
+
 ###Initialize script and get list of packages to...well, package.
-hellotext="4TU Tools: This is pkggen.py v"+version+" by CompuCat."
-print(hellotext+"\n"+('-'*len(hellotext)))
+underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
 pkg_dirs=list(filter(lambda x: (x not in ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Walks directory tree, gets top level directories, then filters out ignored directories such as .git.
 print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs))
 os.makedirs(output_directory, exist_ok=True) #Create output directory
@@ -20,7 +31,7 @@ repojson={'packages':[]}
 ###Package all the things
 for pkg in pkg_dirs:
 	pkgbuild=json.load(open(pkg+"/pkgbuild.json")) #Read pkgbuild.json
-	print("Now packaging: "+pkgbuild['info']['title'])
+	underprint("Now packaging: "+pkgbuild['info']['title'])
 	manifest=""
 	print(str(len(pkgbuild['assets']))+" asset(s) detected")
 	for asset in pkgbuild['assets']: #Possible asset types: update, get, local, extract, zip, icon, screenshot
@@ -47,7 +58,8 @@ for pkg in pkg_dirs:
 		elif asset['type'] == 'zip':
 			print("\t- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 			for subasset in asset['zip']: #WARNING: this will not traverse a nested zip.
-				print("sldkfjsdkl")
+				print("TODO") #TODO: handle subassets
+			os.remove(asset_file_path) #WARNING: this will remove a local zip. Not a problem for CI where it's all refreshed anyway, but still. Also, zips aren't likely to be local anyway.
 		else: print("ERROR: asset of unknown type detected. Skipping.")
 	
 	pkginfo={ #Format package info
@@ -63,21 +75,25 @@ for pkg in pkg_dirs:
 		'changelog': pkgbuild['changes'], #TODO: handle changelog better
 		'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')), #TODO: only generate if package is actually different
 	}
-	# Output package info to info.json
-	# Get size of folder
-	# Zip folder and output to out directory
+	json.dump(pkginfo, open(pkg+"/info.json", "w"), indent=1) # Output package info to info.json
+	print("info.json generated.")
+	print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
+	shutil.make_archive(output_directory+"/"+pkg, 'zip', pkg) # Zip folder and output to out directory
+	print("Zipped package is "+str(os.path.getsize(output_directory+"/"+pkg+".zip")//1024)+" KiB large.")
+	# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
 	# Get size of zipped folder
 	
 	repo_extended_info={ #repo.json has package info plus extended info
 		'binary': 'TODO', #TODO: generate binary path
-		'extracted': -1, #TODO: calculate these sizes and actually include them GASP
-		'filesize': -1,
+		'extracted': get_size(pkg)//1024,
+		'filesize': -1, #TODO
 		'web_dls': -1, #TODO: get these counts from stats API
-		'app_dls': -1
+		'app_dls': -1 #TODO
 	}
 	repo_extended_info.update(pkginfo) #Add package info and extended info together
 	
 	repojson['packages'].append(repo_extended_info) # Add info blurb to repo.json
+	print() #Newline at end of package.
 json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Place repo.json in output directory
 print("out/repo.json generated.")
 print("All done. Enjoy your new repo :)")
