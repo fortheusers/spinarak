@@ -26,7 +26,7 @@ Repo.json has:
 	- Source URL string (COPY)
 	- Author string (COPY)
 	- Changelog string (copy or append from changes string)
-	- Extracted int counter
+	- Extracted size in kibibytes
 	- Version string (COPY)
 	- Filesize int
 	- web_dls int counter
