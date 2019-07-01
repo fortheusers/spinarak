@@ -4,15 +4,16 @@ from datetime import datetime
 import urllib.request
 import shutil
 from zipfile import ZipFile
-version='0.0.0'
+version='0.0.1'
 ignored_directories=[".git"]
 output_directory="out"
 
 ###Initialize script and get list of packages to...well, package.
-print("This is pkggen.py by CompuCat v"+version)
+hellotext="4TU Tools: This is pkggen.py v"+version+" by CompuCat."
+print(hellotext+"\n"+('-'*len(hellotext)))
 pkg_dirs=list(filter(lambda x: (x not in ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Walks directory tree, gets top level directories, then filters out ignored directories such as .git.
-print(str(len(pkg_dirs))+" detected packages:")
-print(pkg_dirs)
+print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs))
+os.makedirs(output_directory, exist_ok=True) #Create output directory
 
 repojson={'packages':[]}
 
@@ -21,32 +22,32 @@ for pkg in pkg_dirs:
 	pkgbuild=json.load(open(pkg+"/pkgbuild.json")) #Read pkgbuild.json
 	print("Now packaging: "+pkgbuild['info']['title'])
 	manifest=""
+	print(str(len(pkgbuild['assets']))+" asset(s) detected")
 	for asset in pkgbuild['assets']: #Possible asset types: update, get, local, extract, zip, icon, screenshot
-		print("\tAsset detected")
 		if os.path.isfile(pkg+asset['url']): # Check if file exists locally
-			print("\t\tAsset is local.")
+			print("\tAsset is local.")
 			asset_file_path=pkg+asset['url']
 		else: # Download asset from URL 
-			print("\t\tDownloading asset...", end="")
+			print("\tDownloading asset...", end="")
 			with urllib.request.urlopen(asset['url']) as response, open(pkg+"/temp_asset", 'wb') as out_file:
 				shutil.copyfileobj(response, out_file)
 			print("done.")
 			asset_file_path=pkg+'/temp_asset'
 		if asset['type'] in ('update', 'get', 'local', 'extract'):
-			print("\t\t- Type is "+asset['type']+", moving to "+asset['dest'])
+			print("\t- Type is "+asset['type']+", moving to "+asset['dest'])
 			manifest+=asset['type'].upper()[0]+": "+asset['dest'].strip("/")
 			os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
 			shutil.move(asset_file_path, pkg+"/"+asset['dest'].strip("/"))
 		elif asset['type'] == 'icon':
-			print("\t\t- Type is icon, moving to /icon.png")
+			print("\t- Type is icon, moving to /icon.png")
 			shutil.move(asset_file_path, pkg+'/icon.png')
 		elif asset['type'] == 'screenshot':
-			print("\t\t- Type is screenshot, moving to /screen.png")
+			print("\t- Type is screenshot, moving to /screen.png")
 			shutil.move(asset_file_path, pkg+'/screen.png')
 		elif asset['type'] == 'zip':
-			print("\t\t- Type is zip, TODO")
+			print("\t- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 			for subasset in asset['zip']: #WARNING: this will not traverse a nested zip.
-				
+				print("sldkfjsdkl")
 		else: print("ERROR: asset of unknown type detected. Skipping.")
 	
 	pkginfo={ #Format package info
@@ -77,4 +78,6 @@ for pkg in pkg_dirs:
 	repo_extended_info.update(pkginfo) #Add package info and extended info together
 	
 	repojson['packages'].append(repo_extended_info) # Add info blurb to repo.json
-# - Place repo.json in output directory
+json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Place repo.json in output directory
+print("out/repo.json generated.")
+print("All done. Enjoy your new repo :)")
