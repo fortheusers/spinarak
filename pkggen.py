@@ -1,4 +1,6 @@
 #! /usr/bin/python3
+### 4TU Tools: pkggen.py by CompuCat.
+### WARNING: This script does a good bit of directory tomfoolery. Back/forward slashes not tested on Windows; works fine on Linux.
 import os,json
 from datetime import datetime
 import urllib.request
@@ -7,6 +9,8 @@ from zipfile import ZipFile
 version='0.0.1'
 ignored_directories=[".git"]
 output_directory="out"
+valid_binary_extensions=(".nro", ".elf", ".rpx")
+
 
 def underprint(x): print(x+"\n"+('-'*len(x))) #Prints with underline. Classy, eh?
 
@@ -23,7 +27,7 @@ def get_size(start_path): #Thanks stackoverflow, modified example to get directo
 ###Initialize script and get list of packages to...well, package.
 underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
 pkg_dirs=list(filter(lambda x: (x not in ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Walks directory tree, gets top level directories, then filters out ignored directories such as .git.
-print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs))
+print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs)+"\n")
 os.makedirs(output_directory, exist_ok=True) #Create output directory
 
 repojson={'packages':[]}
@@ -79,21 +83,32 @@ for pkg in pkg_dirs:
 	print("info.json generated.")
 	print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
 	shutil.make_archive(output_directory+"/"+pkg, 'zip', pkg) # Zip folder and output to out directory
-	print("Zipped package is "+str(os.path.getsize(output_directory+"/"+pkg+".zip")//1024)+" KiB large.")
 	# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
-	# Get size of zipped folder
+	print("Zipped package is "+str(os.path.getsize(output_directory+"/"+pkg+".zip")//1024)+" KiB large.")
 	
 	repo_extended_info={ #repo.json has package info plus extended info
-		'binary': 'TODO', #TODO: generate binary path
 		'extracted': get_size(pkg)//1024,
-		'filesize': -1, #TODO
+		'filesize': os.path.getsize(output_directory+"/"+pkg+".zip")//1024,
 		'web_dls': -1, #TODO: get these counts from stats API
 		'app_dls': -1 #TODO
 	}
+	#Attempt to read binary path from pkgbuild; otherwise, guess it.
+	try: repo_extended_info['binary']=pkgbuild['info']['binary']
+	except:
+		broken=False
+		for (dirpath, dirnames, filenames) in os.walk(pkg):
+			for file in filenames:
+				if file.endswith(valid_binary_extensions):
+					repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
+					broken=True
+					break
+				if broken: break
+		if not broken: print("WARNING: binary path not specified in pkgbuild.json, and no binary found!")
+		else: print("WARNING: binary path not specified in pkgbuild.json; guessing "+repo_extended_info['binary']+".")
 	repo_extended_info.update(pkginfo) #Add package info and extended info together
 	
-	repojson['packages'].append(repo_extended_info) # Add info blurb to repo.json
-	print() #Newline at end of package.
-json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Place repo.json in output directory
+	repojson['packages'].append(repo_extended_info) #Append package info to repo.json
+	print() #Console newline at end of package. for prettiness
+json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Output repo.json
 print("out/repo.json generated.")
 print("All done. Enjoy your new repo :)")
