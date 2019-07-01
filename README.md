@@ -27,8 +27,9 @@ Order of operations:
 		- Generate the following:
 			- Binary path (???)
 			- Update date
-			- Counters (extracted, webdls, appdls)
+			- Counters (webdls, appdls)
 			- Zip filesize
+			- Extracted filesize
 		- Add blurb to repo.json
 	- Place zip in hosting directory
 - Place repo.json in hosting directory

@@ -1,4 +1,4 @@
-info.json has:
+pkgbuild.json has:
 - Package name string
 - Info blurb
 	- Title string
@@ -33,3 +33,10 @@ Repo.json has:
 	- details string (COPY)
 	- app_dls int counter
 	- description string (COPY)
+	
+pkggen needs to generate for each package:
+- assets
+- manifest.install
+- info.json
+
+repo.json is just all the info.json's
