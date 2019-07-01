@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 
 import os,json
+from datetime import datetime
 version='0.0.0'
 ignored_directories=[".git"]
 
@@ -28,7 +29,8 @@ for pkg in pkg_dirs: # - For each package directory:
         'version': pkgbuild['info']['version'],
         'details': pkgbuild['info']['details'],
         'description': pkgbuild['info']['description'],
-        'changelog': pkgbuild['changes'] #TODO: handle changelog better
+        'changelog': pkgbuild['changes'], #TODO: handle changelog better
+        'updated': print(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d'))
     }
 # 		- Generate the following:
 # 			- Binary path (???)
