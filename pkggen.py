@@ -36,7 +36,7 @@ repojson={'packages':[]}
 for pkg in pkg_dirs:
 	pkgbuild=json.load(open(pkg+"/pkgbuild.json")) #Read pkgbuild.json
 	underprint("Now packaging: "+pkgbuild['info']['title'])
-	manifest=""
+	manifest=open(pkg+"/manifest.install", 'w')
 	print(str(len(pkgbuild['assets']))+" asset(s) detected")
 	for asset in pkgbuild['assets']: #Possible asset types: update, get, local, extract, zip, icon, screenshot
 		if os.path.isfile(pkg+asset['url']): # Check if file exists locally
@@ -50,7 +50,7 @@ for pkg in pkg_dirs:
 			asset_file_path=pkg+'/temp_asset'
 		if asset['type'] in ('update', 'get', 'local', 'extract'):
 			print("\t- Type is "+asset['type']+", moving to "+asset['dest'])
-			manifest+=asset['type'].upper()[0]+": "+asset['dest'].strip("/")
+			manifest.write(asset['type'].upper()[0]+": "+asset['dest'].strip("/")+"\n")
 			os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
 			shutil.move(asset_file_path, pkg+"/"+asset['dest'].strip("/"))
 		elif asset['type'] == 'icon':
@@ -81,6 +81,8 @@ for pkg in pkg_dirs:
 	}
 	json.dump(pkginfo, open(pkg+"/info.json", "w"), indent=1) # Output package info to info.json
 	print("info.json generated.")
+	manifest.close()
+	print("manifest.install generated.")
 	print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
 	shutil.make_archive(output_directory+"/"+pkg, 'zip', pkg) # Zip folder and output to out directory
 	# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
