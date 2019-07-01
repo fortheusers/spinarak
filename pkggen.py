@@ -42,7 +42,7 @@ for pkg in pkg_dirs:
 		if os.path.isfile(pkg+asset['url']): # Check if file exists locally
 			print("\tAsset is local.")
 			asset_file_path=pkg+asset['url']
-		else: # Download asset from URL 
+		else: # Download asset from URL
 			print("\tDownloading asset...", end="")
 			with urllib.request.urlopen(asset['url']) as response, open(pkg+"/temp_asset", 'wb') as out_file:
 				shutil.copyfileobj(response, out_file)
