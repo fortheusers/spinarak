@@ -16,11 +16,16 @@
             "url": "https://github.com/HarryPeach/DinoRunNX/releases/download/1.1/DinoRunNX11.zip",
             "type": "zip",
             "zip": [
-                {
-                    "path": "/sd/**",
-                    "dest": "/",
-                    "type": "update"
-                }
+							{
+									"path": "/sd/**",
+									"dest": "/",
+									"type": "update"
+							},
+							{
+									"path": "/sd/**/.**/**",
+									"dest": "/",
+									"type": "update"
+							}
             ]
         },
         {
