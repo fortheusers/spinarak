@@ -58,7 +58,9 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 				if not os.path.isdir(filepath):
 					handleAsset(pkg, {'url':filepath, 'type':subasset['type'], 'dest':subasset['dest']+remove_prefix(filepath, tempdir.name+subasset['path'].rstrip(".*/"))}, manifest, subasset=True, prepend=prepend+"\t")
 					#TODO: check that rstrip to see what other globbable weird characters need stripping
+		del tempdir #TODO: for some reason this doesn't clean up a temp dir, and /tmp makes it into the zip. Fix.
 	else: print("ERROR: asset of unknown type detected. Skipping.")
+	asset_file.close()
 
 def main():
 	#Initialize script and create output directory.
