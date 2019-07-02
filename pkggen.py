@@ -1,28 +1,24 @@
 #! /usr/bin/python3
 ### 4TU Tools: pkggen.py by CompuCat.
-### WARNING: This script does a good bit of directory tomfoolery. Back/forward slashes not tested on Windows; works fine on Linux.
+### WARNING: This script does a good bit of directory tomfoolery. Back/forward slashes not tested on Windows/macOS/what have you; works fine on Linux.
 import os,json
 from datetime import datetime
 import urllib.request
 import shutil
 from zipfile import ZipFile
+import tempfile
+
+### Configurable parameters
 version='0.0.1'
-ignored_directories=[".git"]
-output_directory="out"
-valid_binary_extensions=(".nro", ".elf", ".rpx")
+ignored_directories=[".git"] #These will *NOT* be scanned for pkgbuilds
+output_directory="out" #Repository output directory
+valid_binary_extensions=(".nro", ".elf", ".rpx") #Extensions to search for when guessing binary path
 
 
 def underprint(x): print(x+"\n"+('-'*len(x))) #Prints with underline. Classy, eh?
 
-def get_size(start_path): #Thanks stackoverflow, modified example to get directory size
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(start_path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            # skip if it is symbolic link
-            if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
-    return total_size
+def get_size(start_path): #I do love my oneliners. Oneliner to get the size of a directory recursively.
+	return sum([sum([os.path.getsize(os.path.join(dirpath,f)) for f in filenames if not os.path.islink(os.path.join(dirpath,f))]) for dirpath, dirnames, filenames in os.walk(start_path)])
 
 ###Initialize script and get list of packages to...well, package.
 underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
@@ -62,10 +58,25 @@ for pkg in pkg_dirs:
 		elif asset['type'] == 'zip':
 			print("\t- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 			for subasset in asset['zip']: #WARNING: this will not traverse a nested zip.
-				print("TODO") #TODO: handle subassets
+				print("\t\tLoading subasset...") #TODO: wildcards are not handled
+				if '*' in subasset['path']:
+					print("\t\tWARNING: Wildcard zip paths not yet supported, skipping.")
+					continue
+				with ZipFile(pkg+asset['url']).open(subasset['path']) as asset_file_path:
+					if subasset['type'] in ('update', 'get', 'local', 'extract'):
+						print("\t\t- Type is "+subasset['type']+", moving to "+subasset['dest'])
+						manifest.write(subasset['type'].upper()[0]+": "+subasset['dest'].strip("/")+"\n")
+						os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
+						shutil.copyfileobj(asset_file_path, open(pkg+"/"+asset['dest'].strip("/"), 'wb'))
+					elif subasset['type'] == 'icon':
+						print("\t\t- Type is icon, moving to /icon.png")
+						shutil.copyfileobj(asset_file_path, open(pkg+'/icon.png', 'wb'))
+					elif subasset['type'] == 'screenshot':
+						print("\t\t- Type is screenshot, moving to /screen.png")
+						shutil.copyfileobj(asset_file_path, open(pkg+'/screen.png', 'wb'))
 			os.remove(asset_file_path) #WARNING: this will remove a local zip. Not a problem for CI where it's all refreshed anyway, but still. Also, zips aren't likely to be local anyway.
 		else: print("ERROR: asset of unknown type detected. Skipping.")
-	
+
 	pkginfo={ #Format package info
 		'category': pkgbuild['info']['category'],
 		'name': pkgbuild['package'],
@@ -87,7 +98,7 @@ for pkg in pkg_dirs:
 	shutil.make_archive(output_directory+"/"+pkg, 'zip', pkg) # Zip folder and output to out directory
 	# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
 	print("Zipped package is "+str(os.path.getsize(output_directory+"/"+pkg+".zip")//1024)+" KiB large.")
-	
+
 	repo_extended_info={ #repo.json has package info plus extended info
 		'extracted': get_size(pkg)//1024,
 		'filesize': os.path.getsize(output_directory+"/"+pkg+".zip")//1024,
@@ -108,7 +119,7 @@ for pkg in pkg_dirs:
 		if not broken: print("WARNING: binary path not specified in pkgbuild.json, and no binary found!")
 		else: print("WARNING: binary path not specified in pkgbuild.json; guessing "+repo_extended_info['binary']+".")
 	repo_extended_info.update(pkginfo) #Add package info and extended info together
-	
+
 	repojson['packages'].append(repo_extended_info) #Append package info to repo.json
 	print() #Console newline at end of package. for prettiness
 json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Output repo.json

@@ -19,7 +19,7 @@ KNOWN ISSUES:
 - if a zip asset is local, it will be removed
 - changelog consists of last change only
 - stats API integration is completely missing
-- always rebuilds all packages regardless of change date
+- always rebuilds all packages regardless of change date (change date is sync'd with pkgbuild.json modified date though)
 
 TODO:
 - parse cli arguments for output directory
