@@ -35,6 +35,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		sys.stdout.flush()
 		asset_file=tempfile.NamedTemporaryFile()
 		shutil.copyfileobj(urllib.request.urlopen(asset['url']), asset_file)
+		asset_file.seek(0)
 		print("done.")
 		#asset_file_path=pkg+'/temp_asset'
 	if asset['type'] in ('update', 'get', 'local', 'extract'):
