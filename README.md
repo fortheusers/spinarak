@@ -13,10 +13,7 @@ To run: `python3 pkggen.py` in a directory containing subdirectories named for e
 You can blacklist directories in the top few lines of the script; you can also change the output directory (`/out` by default).
 
 KNOWN ISSUES:
-- zip assets not supported yet
-- nested zip assets not supported
 - built packages include the pkgbuild, which isn't necessary
-- if a zip asset is local, it will be removed
 - changelog consists of last change only
 - stats API integration is completely missing
 - always rebuilds all packages regardless of change date (change date is sync'd with pkgbuild.json modified date though)
