@@ -9,7 +9,7 @@ import tempfile
 import glob
 
 ### Configurable parameters
-version='0.0.2'
+version='0.0.3'
 ignored_directories=[".git"] #These will *NOT* be scanned for pkgbuilds
 output_directory="out" #Repository output directory
 valid_binary_extensions=(".nro", ".elf", ".rpx") #Extensions to search for when guessing binary path
