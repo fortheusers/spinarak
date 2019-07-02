@@ -17,7 +17,7 @@
             "type": "zip",
             "zip": [
                 {
-                    "path": "/sd/*",
+                    "path": "/sd/**",
                     "dest": "/",
                     "type": "update"
                 }

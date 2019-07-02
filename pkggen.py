@@ -1,127 +1,135 @@
 #! /usr/bin/python3
 ### 4TU Tools: pkggen.py by CompuCat.
 ### WARNING: This script does a good bit of directory tomfoolery. Back/forward slashes not tested on Windows/macOS/what have you; works fine on Linux.
-import os,json
+import os,sys,json
 from datetime import datetime
 import urllib.request
 import shutil
-from zipfile import ZipFile
 import tempfile
+import glob
 
 ### Configurable parameters
-version='0.0.1'
+version='0.0.2'
 ignored_directories=[".git"] #These will *NOT* be scanned for pkgbuilds
 output_directory="out" #Repository output directory
 valid_binary_extensions=(".nro", ".elf", ".rpx") #Extensions to search for when guessing binary path
 
-
+### Methods, etc.
 def underprint(x): print(x+"\n"+('-'*len(x))) #Prints with underline. Classy, eh?
 
 def get_size(start_path): #I do love my oneliners. Oneliner to get the size of a directory recursively.
 	return sum([sum([os.path.getsize(os.path.join(dirpath,f)) for f in filenames if not os.path.islink(os.path.join(dirpath,f))]) for dirpath, dirnames, filenames in os.walk(start_path)])
 
-###Initialize script and get list of packages to...well, package.
-underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
-pkg_dirs=list(filter(lambda x: (x not in ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Walks directory tree, gets top level directories, then filters out ignored directories such as .git.
-print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs)+"\n")
-os.makedirs(output_directory, exist_ok=True) #Create output directory
+def remove_prefix(text, prefix): #thanks SE for community-standard method, strips prefix from string
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text
 
-repojson={'packages':[]}
+def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads and places a given asset.
+	if subasset: asset_file=open(asset['url'], "rb")
+	elif os.path.isfile(pkg+asset['url']): # Check if file exists locally
+		print(prepend+"Asset is local.")
+		asset_file=open(pkg+asset['url'], "rb")
+	else: # Download asset from URL
+		print(prepend+"Downloading asset...", end="")
+		sys.stdout.flush()
+		asset_file=tempfile.NamedTemporaryFile()
+		shutil.copyfileobj(urllib.request.urlopen(asset['url']), asset_file)
+		print("done.")
+		#asset_file_path=pkg+'/temp_asset'
+	if asset['type'] in ('update', 'get', 'local', 'extract'):
+		print(prepend+"- Type is "+asset['type']+", moving to /"+asset['dest'].strip("/"))
+		manifest.write(asset['type'].upper()[0]+": "+asset['dest'].strip("/")+"\n")
+		os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
+		shutil.copyfileobj(asset_file, open(pkg+"/"+asset['dest'].strip("/"), "wb"))
+	elif asset['type'] == 'icon':
+		print(prepend+"- Type is icon, moving to /icon.png")
+		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
+	elif asset['type'] == 'screenshot':
+		print(prepend+"- Type is screenshot, moving to /screen.png")
+		shutil.copyfileobj(asset_file, open(pkg+'/screen.png', "wb"))
+	elif asset['type'] == 'zip':
+		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
+		tempdir = tempfile.TemporaryDirectory()
+		shutil.unpack_archive(asset_file.name, extract_dir=tempdir.name, format="zip")
+		for subasset in asset['zip']:
+			for filepath in glob.glob(tempdir.name+subasset['path'], recursive=True):
+				if not os.path.isdir(filepath):
+					handleAsset(pkg, {'url':filepath, 'type':subasset['type'], 'dest':subasset['dest']+remove_prefix(filepath, tempdir.name+subasset['path'].rstrip("*/"))}, manifest, subasset=True, prepend=prepend+"\t")
+					#TODO: check that rstrip to see what other globbable weird characters need stripping
+	else: print("ERROR: asset of unknown type detected. Skipping.")
 
-###Package all the things
-for pkg in pkg_dirs:
-	pkgbuild=json.load(open(pkg+"/pkgbuild.json")) #Read pkgbuild.json
-	underprint("Now packaging: "+pkgbuild['info']['title'])
-	manifest=open(pkg+"/manifest.install", 'w')
-	print(str(len(pkgbuild['assets']))+" asset(s) detected")
-	for asset in pkgbuild['assets']: #Possible asset types: update, get, local, extract, zip, icon, screenshot
-		if os.path.isfile(pkg+asset['url']): # Check if file exists locally
-			print("\tAsset is local.")
-			asset_file_path=pkg+asset['url']
-		else: # Download asset from URL
-			print("\tDownloading asset...", end="")
-			with urllib.request.urlopen(asset['url']) as response, open(pkg+"/temp_asset", 'wb') as out_file:
-				shutil.copyfileobj(response, out_file)
-			print("done.")
-			asset_file_path=pkg+'/temp_asset'
-		if asset['type'] in ('update', 'get', 'local', 'extract'):
-			print("\t- Type is "+asset['type']+", moving to "+asset['dest'])
-			manifest.write(asset['type'].upper()[0]+": "+asset['dest'].strip("/")+"\n")
-			os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
-			shutil.move(asset_file_path, pkg+"/"+asset['dest'].strip("/"))
-		elif asset['type'] == 'icon':
-			print("\t- Type is icon, moving to /icon.png")
-			shutil.move(asset_file_path, pkg+'/icon.png')
-		elif asset['type'] == 'screenshot':
-			print("\t- Type is screenshot, moving to /screen.png")
-			shutil.move(asset_file_path, pkg+'/screen.png')
-		elif asset['type'] == 'zip':
-			print("\t- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
-			for subasset in asset['zip']: #WARNING: this will not traverse a nested zip.
-				print("\t\tLoading subasset...") #TODO: wildcards are not handled
-				if '*' in subasset['path']:
-					print("\t\tWARNING: Wildcard zip paths not yet supported, skipping.")
-					continue
-				with ZipFile(pkg+asset['url']).open(subasset['path']) as asset_file_path:
-					if subasset['type'] in ('update', 'get', 'local', 'extract'):
-						print("\t\t- Type is "+subasset['type']+", moving to "+subasset['dest'])
-						manifest.write(subasset['type'].upper()[0]+": "+subasset['dest'].strip("/")+"\n")
-						os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
-						shutil.copyfileobj(asset_file_path, open(pkg+"/"+asset['dest'].strip("/"), 'wb'))
-					elif subasset['type'] == 'icon':
-						print("\t\t- Type is icon, moving to /icon.png")
-						shutil.copyfileobj(asset_file_path, open(pkg+'/icon.png', 'wb'))
-					elif subasset['type'] == 'screenshot':
-						print("\t\t- Type is screenshot, moving to /screen.png")
-						shutil.copyfileobj(asset_file_path, open(pkg+'/screen.png', 'wb'))
-			os.remove(asset_file_path) #WARNING: this will remove a local zip. Not a problem for CI where it's all refreshed anyway, but still. Also, zips aren't likely to be local anyway.
-		else: print("ERROR: asset of unknown type detected. Skipping.")
+def main():
+	#Initialize script and detect packages.
+	underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
+	pkg_dirs=list(filter(lambda x: (x not in ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Finds top-level directories that are not ignored and have a pkgbuild.
+	print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs)+"\n")
 
-	pkginfo={ #Format package info
-		'category': pkgbuild['info']['category'],
-		'name': pkgbuild['package'],
-		'license': pkgbuild['info']['license'],
-		'title': pkgbuild['info']['title'],
-		'url': pkgbuild['info']['url'],
-		'author': pkgbuild['info']['author'],
-		'version': pkgbuild['info']['version'],
-		'details': "pingpong",#pkgbuild['info']['details'],
-		'description': "test",#pkgbuild['info']['description'],
-		'changelog': pkgbuild['changes'], #TODO: handle changelog better
-		'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')), #TODO: only generate if package is actually different
-	}
-	json.dump(pkginfo, open(pkg+"/info.json", "w"), indent=1) # Output package info to info.json
-	print("info.json generated.")
-	manifest.close()
-	print("manifest.install generated.")
-	print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
-	shutil.make_archive(output_directory+"/"+pkg, 'zip', pkg) # Zip folder and output to out directory
-	# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
-	print("Zipped package is "+str(os.path.getsize(output_directory+"/"+pkg+".zip")//1024)+" KiB large.")
+	os.makedirs(output_directory, exist_ok=True) #Create output directory
+	repojson={'packages':[]} #Instantiate repo.json format
 
-	repo_extended_info={ #repo.json has package info plus extended info
-		'extracted': get_size(pkg)//1024,
-		'filesize': os.path.getsize(output_directory+"/"+pkg+".zip")//1024,
-		'web_dls': -1, #TODO: get these counts from stats API
-		'app_dls': -1 #TODO
-	}
-	#Attempt to read binary path from pkgbuild; otherwise, guess it.
-	try: repo_extended_info['binary']=pkgbuild['info']['binary']
-	except:
-		broken=False
-		for (dirpath, dirnames, filenames) in os.walk(pkg):
-			for file in filenames:
-				if file.endswith(valid_binary_extensions):
-					repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
-					broken=True
-					break
-				if broken: break
-		if not broken: print("WARNING: binary path not specified in pkgbuild.json, and no binary found!")
-		else: print("WARNING: binary path not specified in pkgbuild.json; guessing "+repo_extended_info['binary']+".")
-	repo_extended_info.update(pkginfo) #Add package info and extended info together
+	#Package all the things
+	for pkg in pkg_dirs:
+		#TODO: avoid rebuilding packages that haven't actually changed.
+		pkgbuild=json.load(open(pkg+"/pkgbuild.json")) #Read pkgbuild.json
+		underprint("Now packaging: "+pkgbuild['info']['title'])
+		manifest=open(pkg+"/manifest.install", 'w')
+		#TODO: validate the pkgbuild and gracefully skip invalid packages
 
-	repojson['packages'].append(repo_extended_info) #Append package info to repo.json
-	print() #Console newline at end of package. for prettiness
-json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Output repo.json
-print("out/repo.json generated.")
-print("All done. Enjoy your new repo :)")
+		print(str(len(pkgbuild['assets']))+" asset(s) detected")
+		for asset in pkgbuild['assets']: handleAsset(pkg, asset, manifest)
+
+		pkginfo={ #Format package info
+			'category': pkgbuild['info']['category'],
+			'name': pkgbuild['package'],
+			'license': pkgbuild['info']['license'],
+			'title': pkgbuild['info']['title'],
+			'url': pkgbuild['info']['url'],
+			'author': pkgbuild['info']['author'],
+			'version': pkgbuild['info']['version'],
+			'details': pkgbuild['info']['details'],
+			'description': pkgbuild['info']['description'],
+			'changelog': pkgbuild['changes'], #TODO: handle changelog better
+			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
+		}
+		json.dump(pkginfo, open(pkg+"/info.json", "w"), indent=1) # Output package info to info.json
+		print("info.json generated.")
+		manifest.close()
+		print("manifest.install generated.")
+		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
+		shutil.make_archive(output_directory+"/"+pkg, 'zip', pkg) # Zip folder and output to out directory
+		# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
+		print("Zipped package is "+str(os.path.getsize(output_directory+"/"+pkg+".zip")//1024)+" KiB large.")
+
+		repo_extended_info={ #repo.json has package info plus extended info
+			'extracted': get_size(pkg)//1024,
+			'filesize': os.path.getsize(output_directory+"/"+pkg+".zip")//1024,
+			'web_dls': -1, #TODO: get these counts from stats API
+			'app_dls': -1 #TODO
+		}
+		#Attempt to read binary path from pkgbuild; otherwise, guess it.
+		try: repo_extended_info['binary']=pkgbuild['info']['binary']
+		except:
+			if pkginfo['category']=="theme":
+				repo_extended_info['binary']="none"
+				print("INFO: binary path not specified. Category is theme, so autofilling \"none\".")
+			else:
+				broken=False
+				for (dirpath, dirnames, filenames) in os.walk(pkg):
+					for file in filenames:
+						if file.endswith(valid_binary_extensions):
+							repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
+							broken=True
+							break
+						if broken: break
+				if not broken: print("WARNING: binary path not specified in pkgbuild.json, and no binary found!")
+				else: print("WARNING: binary path not specified in pkgbuild.json; guessing "+repo_extended_info['binary']+".")
+		repo_extended_info.update(pkginfo) #Add package info and extended info together
+
+		repojson['packages'].append(repo_extended_info) #Append package info to repo.json
+		print() #Console newline at end of package. for prettiness
+	json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Output repo.json
+	print("out/repo.json generated.")
+	print("All done. Enjoy your new repo :)")
+
+if __name__ == "__main__": main()
