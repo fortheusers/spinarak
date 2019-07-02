@@ -105,13 +105,14 @@ def main():
 		manifest.close()
 		print("manifest.install generated.")
 		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
-		shutil.make_archive(output_directory+"/"+pkg, 'zip', pkg) # Zip folder and output to out directory
+		shutil.make_archive(output_directory+"/zips/"+pkg, 'zip', pkg) # Zip folder and output to out directory
 		# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
-		print("Zipped package is "+str(os.path.getsize(output_directory+"/"+pkg+".zip")//1024)+" KiB large.")
+		print("Package written to "+output_directory+"/zips/"+pkg+".zip")
+		print("Zipped package is "+str(os.path.getsize(output_directory+"/zips/"+pkg+".zip")//1024)+" KiB large.")
 
 		repo_extended_info={ #repo.json has package info plus extended info
 			'extracted': get_size(pkg)//1024,
-			'filesize': os.path.getsize(output_directory+"/"+pkg+".zip")//1024,
+			'filesize': os.path.getsize(output_directory+"/zips/"+pkg+".zip")//1024,
 			'web_dls': -1, #TODO: get these counts from stats API
 			'app_dls': -1 #TODO
 		}
