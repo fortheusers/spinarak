@@ -31,7 +31,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		print(prepend+"Asset is local.")
 		asset_file=open(pkg+asset['url'], "rb")
 	else: # Download asset from URL
-		print(prepend+"Downloading asset...", end="")
+		print(prepend+"Downloading "+asset['url']+"...", end="")
 		sys.stdout.flush()
 		asset_file=tempfile.NamedTemporaryFile()
 		shutil.copyfileobj(urllib.request.urlopen(asset['url']), asset_file)
@@ -60,12 +60,17 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 	else: print("ERROR: asset of unknown type detected. Skipping.")
 
 def main():
-	#Initialize script and detect packages.
+	#Initialize script and create output directory.
 	underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
+	if os.path.isdir(output_directory):
+		print("WARNING: output directory already exists, scrubbing it.")
+		shutil.rmtree(output_directory)
+	os.makedirs(output_directory)
+
+	#Detect packages.
 	pkg_dirs=list(filter(lambda x: (x not in ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Finds top-level directories that are not ignored and have a pkgbuild.
 	print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs)+"\n")
 
-	os.makedirs(output_directory, exist_ok=True) #Create output directory
 	repojson={'packages':[]} #Instantiate repo.json format
 
 	#Package all the things
