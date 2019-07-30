@@ -1,0 +1,19 @@
+image: python:3.5
+
+cache:
+  paths:
+    - out/
+
+before_script:
+  - npm install
+
+pages:
+  stage: deploy
+  script:
+    - python3 spinerak.py
+  artifacts:
+    paths:
+      - out
+  only:
+    - master
+
