@@ -10,6 +10,6 @@ pages:
     - python3 spinarak.py
   artifacts:
     paths:
-      - out
+      - out/
   only:
     - master
