@@ -1,5 +1,5 @@
 # Spinarak
----
+
 ![logo](https://cdn.bulbagarden.net/upload/thumb/7/75/167Spinarak.png/100px-167Spinarak.png)
 
 **Spinarak** is a tool to generate a [libget](https://github.com/vgmoose/libget) repo, given a set of `pkgbuild` files describing packages.
@@ -11,7 +11,6 @@ It is named after the beloved Pokémon [Spinarak](https://bulbapedia.bulbagarden
 > It spins webs that are strong enough to withstand having stones set on them...
 
 ## Purpose
----
 
 In short, Spinarak does the following:
 - For each committed `pkgbuild.json`:
@@ -22,7 +21,6 @@ In short, Spinarak does the following:
 - Generate the repository's index (`repo.json`), listing all built packages
 
 ## Usage
----
 
 Generating a repository is simple:
 
@@ -49,12 +47,12 @@ The output directory is now a complete *libget* repo, ready for static hosting! 
 - Temp directories sometimes make it into the final zips by accident. (Maybe. Need to verify that this bug still happens.)
 
 ## TODO
----
+
 - Dockerize the crap out of this
 - Link with stats API
 
 ## License
----
+
 Spinarak is licensed under....well, I haven't decided, yet. If you happen to use it before I properly license it, ping us over at https://discord.fortheusers.org.
 
 Contributors:
