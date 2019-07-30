@@ -49,13 +49,13 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		print(prepend+"- Type is icon, moving to /icon.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
-		asset_file.seek(0)
-		shutil.copyfileobj(asset_file, open(config["output_directory"]+'/packages/'+pkg+'/icon.png', "wb"))
+		print(asset_file.name)
+		shutil.copyfile(pkg+'/icon.png', config["output_directory"]+'/packages/'+pkg+'/icon.png')
 	elif asset['type'] == 'screenshot':
 		print(prepend+"- Type is screenshot, moving to /screen.png")
+		shutil.copyfileobj(asset_file, open(pkg+'/screen.png', "wb"))
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
-		asset_file.seek(0)
-		shutil.copyfileobj(asset_file, open(config["output_directory"]+'/packages/'+pkg+'/screen.png', "wb"))
+		shutil.copyfile(pkg+'/screen.png', config["output_directory"]+'/packages/'+pkg+'/screen.png')
 	elif asset['type'] == 'zip':
 		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 		with tempfile.TemporaryDirectory() as tempdirname:
