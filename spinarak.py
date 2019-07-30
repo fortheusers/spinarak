@@ -31,7 +31,9 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 	if subasset: asset_file=open(asset['url'], "rb")
 	elif os.path.isfile(pkg+'/'+asset['url']): # Check if file exists locally
 		print(prepend+"Asset is local.")
-		asset_file=open(pkg+'/'+asset['url'], "rb")
+		asset_file=tempfile.NamedTemporaryFile()
+		shutil.copyfileobj(open(pkg+'/'+asset['url'], "rb"), asset_file)
+		asset_file.seek(0)
 	else: # Download asset from URL
 		print(prepend+"Downloading "+asset['url']+"...", end="")
 		sys.stdout.flush()
@@ -49,7 +51,6 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		print(prepend+"- Type is icon, moving to /icon.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
-		print(asset_file.name)
 		shutil.copyfile(pkg+'/icon.png', config["output_directory"]+'/packages/'+pkg+'/icon.png')
 	elif asset['type'] == 'screenshot':
 		print(prepend+"- Type is screenshot, moving to /screen.png")
