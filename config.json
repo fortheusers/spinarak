@@ -1,0 +1,5 @@
+{
+	"ignored_directories": [".git"],
+	"output_directory": "out",
+	"valid_binary_extensions": (".nro", ".elf", ".rpx")
+}

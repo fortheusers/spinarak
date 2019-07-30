@@ -31,7 +31,7 @@ Create a directory to serve as the build directory; then, create subdirectories 
 
 ####2. Package your packages
 
-Run `python3 pkggen.py` in the build directory. You can blacklist directories that should not be considered packages by modifying the top few lines of the script; you can also change the output directory (`/out` by default).
+Simply run `python3 pkggen.py` in the build directory. (TODO: dependencies, docker) Optionally, you can modify the sample `config.json` as you see fit; within it, you can change the output directory (`out` by default). You can also blacklist directories from being built as packages and set valid extensions for binary files. (If and only if the `pkgbuild.json` does not specify which file is the main binary of the package, Spinarak will use this list to detect valid binary files by their extension.) If a `config.json` is not present, Spinarak will use its default configuration.
 
 ####3. Host your repository
 
@@ -47,7 +47,6 @@ The output directory is now a complete *libget* repo, ready for static hosting! 
 
 ##TODO
 ---
-- `config.json` all the configurable things
 - Dockerize the crap out of this
 
 ##License
@@ -57,6 +56,7 @@ Spinarak is licensed under....well, I haven't decided, yet. If you happen to use
 Contributors:
 - [CompuCat](https://compucat.me/about) - primary development
 - [vgmoose](https://vgmoose.com) - Dockerization, integration with the Homebrew App Store
-- [crc32](https://crc32.dev) and [pwsincd](https://github.com/pwsincd)- Referencing libget formatting
+- [crc32](https://crc32.dev) and [pwsincd](https://github.com/pwsincd) - Referencing libget formatting
+- [Whovian9369](https://https://cybre.space/@Whovian9369) - Writing documentation
 
 ...and the rest of the 4TU team.

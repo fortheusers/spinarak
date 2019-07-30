@@ -8,11 +8,16 @@ import shutil
 import tempfile
 import glob
 
-### Configurable parameters
 version='0.0.3'
-ignored_directories=[".git"] #These will *NOT* be scanned for pkgbuilds
-output_directory="out" #Repository output directory
-valid_binary_extensions=(".nro", ".elf", ".rpx") #Extensions to search for when guessing binary path
+#ignored_directories=[".git"] #These will *NOT* be scanned for pkgbuilds
+#output_directory="out" #Repository output directory
+#valid_binary_extensions=(".nro", ".elf", ".rpx") #Extensions to search for when guessing binary path
+
+config_default={
+	"ignored_directories": [".git"],
+	"output_directory": "out",
+	"valid_binary_extensions": (".nro", ".elf", ".rpx")
+}
 
 ### Methods, etc.
 def underprint(x): print(x+"\n"+('-'*len(x))) #Prints with underline. Classy, eh?
@@ -65,13 +70,19 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 def main():
 	#Initialize script and create output directory.
 	underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
-	if os.path.isdir(output_directory):
-		print("WARNING: output directory already exists, scrubbing it.")
-		shutil.rmtree(output_directory)
-	os.makedirs(output_directory)
+	try: config=json.load("config.json")
+	except:
+		print("Couldn't load config.json; using default configuration.")
+		config=config_default
+
+
+	if os.path.isdir(config["output_directory"]):
+		print("WARNING: output directory already exists. It will be erased and overwritten.")
+		shutil.rmtree(config["output_directory"])
+	os.makedirs(config["output_directory"])
 
 	#Detect packages.
-	pkg_dirs=list(filter(lambda x: (x not in ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Finds top-level directories that are not ignored and have a pkgbuild.
+	pkg_dirs=list(filter(lambda x: (x not in config["ignored_directories"]) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Finds top-level directories that are not ignored and have a pkgbuild.
 	print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs)+"\n")
 
 	repojson={'packages':[]} #Instantiate repo.json format
@@ -105,14 +116,14 @@ def main():
 		manifest.close()
 		print("manifest.install generated.")
 		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
-		shutil.make_archive(output_directory+"/zips/"+pkg, 'zip', pkg) # Zip folder and output to out directory
+		shutil.make_archive(config["output_directory"]+"/zips/"+pkg, 'zip', pkg) # Zip folder and output to out directory
 		# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
-		print("Package written to "+output_directory+"/zips/"+pkg+".zip")
-		print("Zipped package is "+str(os.path.getsize(output_directory+"/zips/"+pkg+".zip")//1024)+" KiB large.")
+		print("Package written to "+config["output_directory"]+"/zips/"+pkg+".zip")
+		print("Zipped package is "+str(os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024)+" KiB large.")
 
 		repo_extended_info={ #repo.json has package info plus extended info
 			'extracted': get_size(pkg)//1024,
-			'filesize': os.path.getsize(output_directory+"/zips/"+pkg+".zip")//1024,
+			'filesize': os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024,
 			'web_dls': -1, #TODO: get these counts from stats API
 			'app_dls': -1 #TODO
 		}
@@ -126,7 +137,7 @@ def main():
 				broken=False
 				for (dirpath, dirnames, filenames) in os.walk(pkg):
 					for file in filenames:
-						if file.endswith(valid_binary_extensions):
+						if file.endswith(config["valid_binary_extensions"]):
 							repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
 							broken=True
 							break
@@ -137,7 +148,7 @@ def main():
 
 		repojson['packages'].append(repo_extended_info) #Append package info to repo.json
 		print() #Console newline at end of package. for prettiness
-	json.dump(repojson, open(output_directory+"/repo.json", "w"), indent=1) #Output repo.json
+	json.dump(repojson, open(config["output_directory"]+"/repo.json", "w"), indent=1) #Output repo.json
 	print("out/repo.json generated.")
 	print("All done. Enjoy your new repo :)")
 
