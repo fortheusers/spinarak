@@ -7,10 +7,9 @@ cache:
 pages:
   stage: deploy
   script:
-    - python3 spinerak.py
+    - python3 spinarak.py
   artifacts:
     paths:
       - out
   only:
     - master
-
