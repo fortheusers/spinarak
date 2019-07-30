@@ -8,6 +8,7 @@ pages:
   stage: deploy
   script:
     - python3 spinarak.py
+    - cp -r out public
   artifacts:
     paths:
       - public
