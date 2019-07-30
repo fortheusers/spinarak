@@ -48,6 +48,7 @@ The output directory is now a complete *libget* repo, ready for static hosting! 
 ##TODO
 ---
 - Dockerize the crap out of this
+- Link with stats API
 
 ##License
 ---

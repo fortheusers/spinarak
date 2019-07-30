@@ -108,9 +108,13 @@ def main():
 			'version': pkgbuild['info']['version'],
 			'details': pkgbuild['info']['details'],
 			'description': pkgbuild['info']['description'],
-			'changelog': pkgbuild['changes'], #TODO: handle changelog better
+			#'changelog': pkgbuild['change'],
 			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
 		}
+		try: pkginfo['changelog']=pkgbuild['changelog']
+		except:
+			pkginfo['changelog']=pkgbuild['changes']
+			print("WARNING: the `changes` field was deprecated from the start. Use `changelog` instead.")
 		json.dump(pkginfo, open(pkg+"/info.json", "w"), indent=1) # Output package info to info.json
 		print("info.json generated.")
 		manifest.close()
