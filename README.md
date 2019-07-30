@@ -33,6 +33,11 @@ Create a directory to serve as the build directory; then, create subdirectories 
 
 Simply run `python3 pkggen.py` in the build directory. (TODO: dependencies, docker) Optionally, you can modify the sample `config.json` as you see fit; within it, you can change the output directory (`out` by default). You can also blacklist directories from being built as packages and set valid extensions for binary files. (If and only if the `pkgbuild.json` does not specify which file is the main binary of the package, Spinarak will use this list to detect valid binary files by their extension.) If a `config.json` is not present, Spinarak will use its default configuration.
 
+A few notes about Spinarak's character and behavior:
+- *It's an observant little spider*: it will auto-detect a previous libget repo in the output directory and update it.
+- *It's a lazy little spider*: it will only update packages that have not changed.
+- *It's a responsible little spider*: it will refuse to create a libget repo if the output directory isn't blank or nonexistent.
+
 ####3. Host your repository
 
 The output directory is now a complete *libget* repo, ready for static hosting! Use your favorite hosting tool - GitLab Pages works beautifully, for example.
@@ -40,10 +45,8 @@ The output directory is now a complete *libget* repo, ready for static hosting! 
 ##Known issues/limitations
 ---
 - built packages include the pkgbuild, which isn't necessary
-- changelog consists of last change only
 - stats API integration is completely missing
-- always rebuilds all packages regardless of change date (change date is sync'd with pkgbuild.json modified date though)
-- Temp directories sometimes make it into the final zips by accident.
+- Temp directories sometimes make it into the final zips by accident. (Maybe. Need to verify that this bug still happens.)
 
 ##TODO
 ---

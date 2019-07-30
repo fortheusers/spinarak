@@ -1,5 +1,5 @@
 #! /usr/bin/python3
-### 4TU Tools: pkggen.py by CompuCat.
+### 4TU Tools: spinarak.py by CompuCat.
 ### WARNING: This script does a good bit of directory tomfoolery. Back/forward slashes not tested on Windows/macOS/what have you; works fine on Linux.
 import os,sys,json
 from datetime import datetime
@@ -65,7 +65,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 
 def main():
 	#Initialize script and create output directory.
-	underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
+	underprint("This is Spinarak v"+version+" by CompuCat and the 4TU Team.")
 	try: config=json.load(open("config.json"))
 	except:
 		print("Couldn't load config.json; using default configuration.")
