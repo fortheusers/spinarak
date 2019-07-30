@@ -48,9 +48,12 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 	elif asset['type'] == 'icon':
 		print(prepend+"- Type is icon, moving to /icon.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
+		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
+		shutil.copyfileobj(asset_file, open(config["output_directory"]+'/packages/'+pkg+'/icon.png', "wb"))
 	elif asset['type'] == 'screenshot':
 		print(prepend+"- Type is screenshot, moving to /screen.png")
-		shutil.copyfileobj(asset_file, open(pkg+'/screen.png', "wb"))
+		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
+		shutil.copyfileobj(asset_file, open(config["output_directory"]+'/packages/'+pkg+'/screen.png', "wb"))
 	elif asset['type'] == 'zip':
 		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 		with tempfile.TemporaryDirectory() as tempdirname:
@@ -66,6 +69,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 def main():
 	#Initialize script and create output directory.
 	underprint("This is Spinarak v"+version+" by CompuCat and the 4TU Team.")
+	global config
 	try: config=json.load(open("config.json"))
 	except:
 		print("Couldn't load config.json; using default configuration.")
@@ -179,6 +183,7 @@ def main():
 
 		repojson['packages'].append(repo_extended_info) #Append package info to repo.json
 		print() #Console newline at end of package. for prettiness
+
 	json.dump(repojson, open(config["output_directory"]+"/repo.json", "w"), indent=1) #Output repo.json
 	print("out/repo.json generated.")
 
