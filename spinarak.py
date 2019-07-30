@@ -49,10 +49,12 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		print(prepend+"- Type is icon, moving to /icon.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
+		asset_file.seek(0)
 		shutil.copyfileobj(asset_file, open(config["output_directory"]+'/packages/'+pkg+'/icon.png', "wb"))
 	elif asset['type'] == 'screenshot':
 		print(prepend+"- Type is screenshot, moving to /screen.png")
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
+		asset_file.seek(0)
 		shutil.copyfileobj(asset_file, open(config["output_directory"]+'/packages/'+pkg+'/screen.png', "wb"))
 	elif asset['type'] == 'zip':
 		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
