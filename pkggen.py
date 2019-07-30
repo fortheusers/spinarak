@@ -70,7 +70,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 def main():
 	#Initialize script and create output directory.
 	underprint("4TU Tools: This is pkggen.py v"+version+" by CompuCat.")
-	try: config=json.load("config.json")
+	try: config=json.load(open("config.json"))
 	except:
 		print("Couldn't load config.json; using default configuration.")
 		config=config_default
@@ -137,7 +137,7 @@ def main():
 				broken=False
 				for (dirpath, dirnames, filenames) in os.walk(pkg):
 					for file in filenames:
-						if file.endswith(config["valid_binary_extensions"]):
+						if file.endswith(tuple(config["valid_binary_extensions"])):
 							repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
 							broken=True
 							break
