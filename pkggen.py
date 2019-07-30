@@ -32,9 +32,9 @@ def remove_prefix(text, prefix): #thanks SE for community-standard method, strip
 
 def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads and places a given asset.
 	if subasset: asset_file=open(asset['url'], "rb")
-	elif os.path.isfile(pkg+asset['url']): # Check if file exists locally
+	elif os.path.isfile(pkg+'/'+asset['url']): # Check if file exists locally
 		print(prepend+"Asset is local.")
-		asset_file=open(pkg+asset['url'], "rb")
+		asset_file=open(pkg+'/'+asset['url'], "rb")
 	else: # Download asset from URL
 		print(prepend+"Downloading "+asset['url']+"...", end="")
 		sys.stdout.flush()
