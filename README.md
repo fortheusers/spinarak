@@ -41,7 +41,7 @@ A few notes about Spinarak's character and behavior:
 The output directory is now a complete *libget* repo, ready for static hosting! Use your favorite hosting tool - GitLab Pages works beautifully, for example.
 
 ## Known issues/limitations
----
+
 - built packages include the pkgbuild, which isn't necessary
 - stats API integration is completely missing
 - Temp directories sometimes make it into the final zips by accident. (Maybe. Need to verify that this bug still happens.)
