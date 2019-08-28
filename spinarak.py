@@ -12,7 +12,7 @@ version='0.0.4'
 
 config_default={
 	"ignored_directories": [".git"],
-	"output_directory": "out",
+	"output_directory": "public",
 	"valid_binary_extensions": (".nro", ".elf", ".rpx")
 }
 
