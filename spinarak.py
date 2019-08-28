@@ -188,7 +188,7 @@ def main():
 		print() #Console newline at end of package. for prettiness
 
 	json.dump(repojson, open(config["output_directory"]+"/repo.json", "w"), indent=1) #Output repo.json
-	print("out/repo.json generated.")
+	print(config["output_directory"]+"/repo.json generated.")
 
 	underprint("\nSUMMARY")
 	print("Built "+str(len(pkg_dirs)-len(failedPackages)-len(skippedPackages))+" of "+str(len(pkg_dirs))+" packages.")
