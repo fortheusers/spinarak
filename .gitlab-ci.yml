@@ -10,12 +10,6 @@ stages:
   - build
   - push
 
-variables:
-  # fill those if you have a proxy in your environment
-  http_proxy: 
-  https_proxy: 
-  no_proxy: 
-
 # Use this if your GitLab runner does not use socket binding
 # services:
 #   - docker:dind
@@ -37,9 +31,6 @@ Build:
     - >
       docker build
       --pull
-      --build-arg http_proxy=$http_proxy
-      --build-arg https_proxy=$https_proxy
-      --build-arg no_proxy=$no_proxy
       --build-arg VCS_REF=$CI_COMMIT_SHA
       --build-arg VCS_URL=$CI_PROJECT_URL
       --cache-from $CI_REGISTRY_IMAGE:latest
