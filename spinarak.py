@@ -64,7 +64,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 			for subasset in asset['zip']:
 				for filepath in glob.glob(tempdirname+subasset['path'], recursive=True):
 					if not os.path.isdir(filepath):
-						handleAsset(pkg, {'url':filepath, 'type':subasset['type'], 'dest':(subasset['dest']+remove_prefix(filepath, tempdirname+subasset['path'].rstrip(".*/"))) if subasset.has_key('dest') else None}, manifest, subasset=True, prepend=prepend+"\t")
+						handleAsset(pkg, {'url':filepath, 'type':subasset['type'], 'dest':(subasset['dest']+remove_prefix(filepath, tempdirname+subasset['path'].rstrip(".*/"))) if 'dest' in subasset else None}, manifest, subasset=True, prepend=prepend+"\t")
 						#TODO: check that rstrip to see what other globbable weird characters need stripping
 	else: print("ERROR: asset of unknown type detected. Skipping.")
 	asset_file.close()
