@@ -180,7 +180,7 @@ def main():
 							broken=True
 							break
 						if broken: break
-				if not broken: print("WARNING: binary path not specified in pkgbuild.json, and no binary found!")
+				if not broken: print("WARNING: "+pkgbuild['info']['title']+"'s binary path not specified in pkgbuild.json, and no binary found!")
 				else: print("WARNING: binary path not specified in pkgbuild.json; guessing "+repo_extended_info['binary']+".")
 		repo_extended_info.update(pkginfo) #Add package info and extended info together
 
