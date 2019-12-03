@@ -8,7 +8,7 @@ import shutil
 import tempfile
 import glob
 
-version='0.0.5'
+version='0.0.6'
 
 config_default={
 	"ignored_directories": [".git"],
@@ -44,7 +44,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		#asset_file_path=pkg+'/temp_asset'
 	if asset['type'] in ('update', 'get', 'local', 'extract'):
 		print(prepend+"- Type is "+asset['type']+", moving to /"+asset['dest'].strip("/"))
-		manifest.write(asset['type'].upper()[0]+": "+asset['dest'].strip("/")+"\n")
+		manifest.write(asset['type'].upper()[0]+": "+asset['dest'].strip("/")+"\n") #Write manifest.install
 		os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
 		shutil.copyfileobj(asset_file, open(pkg+"/"+asset['dest'].strip("/"), "wb"))
 	elif asset['type'] == 'icon':
@@ -64,9 +64,14 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 			handledSubAssets=0
 			for subasset in asset['zip']:
 				for filepath in glob.glob(tempdirname+"/"+subasset['path'].lstrip("/"), recursive=True):
-					if not os.path.isdir(filepath):
+					if not os.path.isdir(filepath): #Don't try to handle a directory as an asset - assets must be single files
 						#TODO: check that rstrip to see what other globbable weird characters need stripping
-						handleAsset(pkg, {'url':filepath, 'type':subasset['type'], 'dest':(subasset['dest']+remove_prefix(filepath, tempdirname+subasset['path'].rstrip(".*/"))) if 'dest' in subasset else None}, manifest, subasset=True, prepend=prepend+"\t")
+						subassetInfo={
+							'url':filepath,
+							'type':subasset['type'],
+							'dest':("/"+subasset['dest'].lstrip("/")+remove_prefix(filepath, tempdirname+"/"+subasset['path'].lstrip("/").rstrip(".*/"))) if 'dest' in subasset else None
+						}
+						handleAsset(pkg, subassetInfo, manifest, subasset=True, prepend=prepend+"\t")
 						handledSubAssets+=1
 			if handledSubAssets!=len(asset['zip']): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset['zip']))+" listed.")
 	else: print("ERROR: asset of unknown type detected. Skipping.")
