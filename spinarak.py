@@ -61,11 +61,14 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 		with tempfile.TemporaryDirectory() as tempdirname:
 			shutil.unpack_archive(asset_file.name, extract_dir=tempdirname, format="zip")
+			handledSubAssets=0
 			for subasset in asset['zip']:
-				for filepath in glob.glob(tempdirname+subasset['path'], recursive=True):
+				for filepath in glob.glob(tempdirname+"/"+subasset['path'].lstrip("/"), recursive=True):
 					if not os.path.isdir(filepath):
-						handleAsset(pkg, {'url':filepath, 'type':subasset['type'], 'dest':(subasset['dest']+remove_prefix(filepath, tempdirname+subasset['path'].rstrip(".*/"))) if 'dest' in subasset else None}, manifest, subasset=True, prepend=prepend+"\t")
 						#TODO: check that rstrip to see what other globbable weird characters need stripping
+						handleAsset(pkg, {'url':filepath, 'type':subasset['type'], 'dest':(subasset['dest']+remove_prefix(filepath, tempdirname+subasset['path'].rstrip(".*/"))) if 'dest' in subasset else None}, manifest, subasset=True, prepend=prepend+"\t")
+						handledSubAssets+=1
+			if handledSubAssets!=len(asset['zip']): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset['zip']))+" listed.")
 	else: print("ERROR: asset of unknown type detected. Skipping.")
 	asset_file.close()
 
