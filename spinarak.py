@@ -8,11 +8,7 @@ import shutil
 import tempfile
 import glob
 
-<<<<<<< HEAD
 version='0.0.7'
-=======
-version='0.0.6'
->>>>>>> bc3a88d186b64ba3569a768b5fb23484aa6ac220
 
 config_default={
 	"ignored_directories": [".git"],
