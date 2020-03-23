@@ -13,7 +13,7 @@ urllib.request.install_opener(opener)
 
 config_default = """# spinarak config
 ignored_directories = ".git"
-output_directory = "public",
+output_directory = "public"
 valid_binary_extensions = [".nro", ".elf", ".rpx"]
 """
 
