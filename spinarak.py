@@ -1,20 +1,52 @@
 #! /usr/bin/python3
-### 4TU Tools: spinarak.py by CompuCat.
+### 4TU Tools: spinarak.py by CompuCat, modifed by LyfeOnEdge
 ### WARNING: This script does a good bit of directory tomfoolery. Back/forward slashes not tested on Windows/macOS/what have you; works fine on Linux.
-import os,sys,json
-from datetime import datetime
+import os, sys, json, shutil, zipfile, glob, tempfile, datetime, io
 import urllib.request
-import shutil
-import tempfile
-import glob
 
-version='0.0.7'
+version = '0.0.8'
 
-config_default={
-	"ignored_directories": [".git"],
-	"output_directory": "public",
-	"valid_binary_extensions": (".nro", ".elf", ".rpx")
-}
+#Build opener that prevents failed retrieves on some sites
+opener = urllib.request.build_opener()
+opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+urllib.request.install_opener(opener)
+
+config_default = """# spinarak config
+ignored_directories = ".git"
+output_directory = "public",
+valid_binary_extensions = [".nro", ".elf", ".rpx"]
+"""
+
+# Original zipit code:
+# http://stackoverflow.com/a/6078528
+#
+# Call `zipit` with the path to either a directory or a file.
+# All paths packed into the zip are relative to the directory
+# or the directory of the file.
+
+# zipit has been modified to not require an archive name (since it's not writing to one)
+# it now uses a bytes object to store the zip contents so it never hits disk
+# Additionally it has been given an 'exclude' argument which should be passed a list of file names to exclude from the zip
+def zipit(path, exclude = None):
+	virtual_zip = io.BytesIO()
+	archive = zipfile.ZipFile(virtual_zip, "w", zipfile.ZIP_DEFLATED)
+	if os.path.isdir(path):
+		_zippy(path, path, archive, exclude)
+	else:
+		_, name = os.path.split(path)
+		archive.write(path, name)
+	return virtual_zip
+	
+def _zippy(base_path, path, archive, exclude):
+	paths = os.listdir(path)
+	for p in paths:
+		q = os.path.join(path, p)
+		if os.path.isdir(q):
+			_zippy(base_path, q, archive, exclude)
+		else:
+			if p in exclude:
+				continue
+			archive.write(q, os.path.relpath(q, base_path))
 
 ### Methods, etc.
 def underprint(x): print(x+"\n"+('-'*len(x.strip()))) #Prints with underline. Classy, eh?
@@ -50,13 +82,13 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 	elif asset['type'] == 'icon':
 		print(prepend+"- Type is icon, moving to /icon.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
-		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
-		shutil.copyfile(pkg+'/icon.png', config["output_directory"]+'/packages/'+pkg+'/icon.png')
+		os.makedirs(config.output_directory+'/packages/'+pkg, exist_ok=True)
+		shutil.copyfile(pkg+'/icon.png', config.output_directory+'/packages/'+pkg+'/icon.png')
 	elif asset['type'] == 'screenshot':
 		print(prepend+"- Type is screenshot, moving to /screen.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/screen.png', "wb"))
-		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
-		shutil.copyfile(pkg+'/screen.png', config["output_directory"]+'/packages/'+pkg+'/screen.png')
+		os.makedirs(config.output_directory+'/packages/'+pkg, exist_ok=True)
+		shutil.copyfile(pkg+'/screen.png', config.output_directory+'/packages/'+pkg+'/screen.png')
 	elif asset['type'] == 'zip':
 		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 		with tempfile.TemporaryDirectory() as tempdirname:
@@ -80,28 +112,32 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 def main():
 	#Initialize script and create output directory.
 	underprint("This is Spinarak v"+version+" by CompuCat and the 4TU Team.")
-	global config
-	try: config=json.load(open("config.json"))
-	except:
-		print("Couldn't load config.json; using default configuration.")
-		config=config_default
+
+	if not os.path.isfile(os.path.join(__file__, "config.py")):
+		with open(os.path.join(__file__, "config.py")) as cfg:
+			cfg.write(config_default)
+
+	import config
 
 	#Instantiate output directory if needed and look for pre-existing libget repo.
 	updatingRepo=False #This flag is True if and only if the output directory is a valid libget repo; it tells Spinarak to skip repackaging packages that haven't changed.
-	if os.path.isdir(config["output_directory"]):
-		if len(os.listdir(config["output_directory"]))==0: pass
+	if os.path.isdir(config.output_directory):
+		if len(os.listdir(config.output_directory))==0: pass
 		else:
 			try:
-				previousRepojson=json.load(open(config["output_directory"]+"/repo.json"))
+				previousRepojson=json.load(open(config.output_directory+"/repo.json"))
 				updatingRepo=True
 				print("INFO: the output directory is already a libget repo! Updating the existing repo.")
 			except:
 				print("ERROR: output directory is not empty and is not a libget repo. Stopping.")
 				sys.exit(0)
-	else: os.makedirs(config["output_directory"])
+	else: os.makedirs(config.output_directory)
 
-	#Detect packages.
-	pkg_dirs=list(filter(lambda x: (x not in config["ignored_directories"]) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk('.'))[1])) #Finds top-level directories that are not ignored and have a pkgbuild.
+	if not os.path.isdir(os.path.join(config.output_directory, "zips")):
+		os.mkdir(os.path.join(config.output_directory, "zips"))
+
+
+	pkg_dirs=list(filter(lambda x: (x not in config.ignored_directories) and os.path.isfile(x+"/pkgbuild.json"), next(os.walk("."))[1])) #Finds top-level directories that are not ignored and have a pkgbuild.
 	print(str(len(pkg_dirs))+" detected packages: "+str(pkg_dirs)+"\n")
 
 	repojson={'packages':[]} #Instantiate repo.json format
@@ -132,7 +168,7 @@ def main():
 					continue
 				else:
 					underprint("Now updating: "+pkgbuild['info']['title'])
-					os.remove(config["output_directory"]+"/zips/"+pkg+".zip")
+					os.remove(config.output_directory+"/zips/"+pkg+".zip")
 		else: underprint("Now packaging: "+pkgbuild['info']['title'])
 		manifest=open(pkg+"/manifest.install", 'w')
 
@@ -149,7 +185,7 @@ def main():
 			'version': pkgbuild['info']['version'],
 			'details': pkgbuild['info']['details'],
 			'description': pkgbuild['info']['description'],
-			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
+			'updated': str(datetime.datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
 		}
 		try: pkginfo['changelog']=pkgbuild['changelog']
 		except:
@@ -162,14 +198,17 @@ def main():
 		manifest.close()
 		print("manifest.install generated.")
 		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
-		shutil.make_archive(config["output_directory"]+"/zips/"+pkg, 'zip', pkg) # Zip folder and output to out directory
+		z = zipit(pkg, exclude = ["pkgbuild.json"]) #Create in-memory zip.
+		with open(config.output_directory+"/zips/"+pkg+".zip", "w+b") as out:
+			out.write(z.getvalue()) #Write the zip out.
+		# shutil.make_archive(config.output_directory+"/zips/"+pkg, 'zip', pkg) # Zip folder and output to out directory
 		# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
-		print("Package written to "+config["output_directory"]+"/zips/"+pkg+".zip")
-		print("Zipped package is "+str(os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024)+" KiB large.")
+		print("Package written to "+config.output_directory+"/zips/"+pkg+".zip")
+		print("Zipped package is "+str(os.path.getsize(config.output_directory+"/zips/"+pkg+".zip")//1024)+" KiB large.")
 
 		repo_extended_info={ #repo.json has package info plus extended info
 			'extracted': get_size(pkg)//1024,
-			'filesize': os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024,
+			'filesize': os.path.getsize(config.output_directory+"/zips/"+pkg+".zip")//1024,
 			'web_dls': -1, #TODO: get these counts from stats API
 			'app_dls': -1 #TODO
 		}
@@ -183,7 +222,7 @@ def main():
 				broken=False
 				for (dirpath, dirnames, filenames) in os.walk(pkg):
 					for file in filenames:
-						if file.endswith(tuple(config["valid_binary_extensions"])):
+						if file.endswith(tuple(config.valid_binary_extensions)):
 							repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
 							broken=True
 							break
@@ -195,8 +234,8 @@ def main():
 		repojson['packages'].append(repo_extended_info) #Append package info to repo.json
 		print() #Console newline at end of package. for prettiness
 
-	json.dump(repojson, open(config["output_directory"]+"/repo.json", "w"), indent=1) #Output repo.json
-	print(config["output_directory"]+"/repo.json generated.")
+	json.dump(repojson, open(config.output_directory+"/repo.json", "w"), indent=1) #Output repo.json
+	print(config.output_directory+"/repo.json generated.")
 
 	underprint("\nSUMMARY")
 	print("Built "+str(len(pkg_dirs)-len(failedPackages)-len(skippedPackages))+" of "+str(len(pkg_dirs))+" packages.")
