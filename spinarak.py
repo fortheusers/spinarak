@@ -1,5 +1,5 @@
 #! /usr/bin/python3
-### 4TU Tools: spinarak.py by CompuCat, modifed by LyfeOnEdge
+### 4TU Tools: spinarak.py by CompuCat
 ### WARNING: This script does a good bit of directory tomfoolery. Back/forward slashes not tested on Windows/macOS/what have you; works fine on Linux.
 import os, sys, json, shutil, zipfile, glob, tempfile, datetime, io
 import urllib.request
@@ -114,7 +114,7 @@ def main():
 	underprint("This is Spinarak v"+version+" by CompuCat and the 4TU Team.")
 
 	if not os.path.isfile(os.path.join(__file__, "config.py")):
-		with open(os.path.join(__file__, "config.py")) as cfg:
+		with open(os.path.join(__file__, "config.py"), 'w+') as cfg:
 			cfg.write(config_default)
 
 	import config
