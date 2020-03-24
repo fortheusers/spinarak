@@ -113,8 +113,8 @@ def main():
 	#Initialize script and create output directory.
 	underprint("This is Spinarak v"+version+" by CompuCat and the 4TU Team.")
 
-	if not os.path.isfile(os.path.join(__file__, "config.py")):
-		with open(os.path.join(__file__, "config.py"), 'w+') as cfg:
+	if not os.path.isfile(os.path.join(os.path.dirname(__file__), "config.py")):
+		with open(os.path.join(os.path.dirname(__file__), "config.py"), 'w+') as cfg:
 			cfg.write(config_default)
 
 	import config
