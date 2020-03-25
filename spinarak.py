@@ -117,6 +117,7 @@ def main():
 		with open(os.path.join(os.path.dirname(__file__), "config.py"), 'w+') as cfg:
 			cfg.write(config_default)
 
+	global config
 	import config
 
 	#Instantiate output directory if needed and look for pre-existing libget repo.
