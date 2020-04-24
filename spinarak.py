@@ -1,23 +1,22 @@
 #! /usr/bin/python3
 ### 4TU Tools: spinarak.py by CompuCat, LyfeOnEdge, and the 4TU Team
-import os, io, sys, json, shutil, argparse, fnmatch
+import os, sys, json, shutil, argparse, fnmatch
 from datetime import datetime
 import urllib.request
-import tempfile
-import glob
 from zipfile import ZipFile, ZIP_DEFLATED
-version='0.0.8'
 
-#Build opener that prevents failed retrieves on some sites
-opener = urllib.request.build_opener()
-opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-urllib.request.install_opener(opener)
+version='0.0.8'
 
 config_default = """# spinarak config
 target_dir = "."
 output_dir = "public"
 valid_binary_extensions = [".nro", ".elf", ".rpx"]
 """
+
+#Build opener that prevents failed retrieves on some sites
+opener = urllib.request.build_opener()
+opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+urllib.request.install_opener(opener)
 
 if not os.path.isfile(os.path.join(os.path.dirname(__file__), "config.py")):
 	with open(os.path.join(os.path.dirname(__file__), "config.py"), 'w+') as cfg:
@@ -84,24 +83,33 @@ class Spinner:
 		self.output_dir = os.path.realpath(output_dir)
 		self.ignore_non_empty_output = ignore_non_empty_output
 		#Instantiate output directory if needed and look for pre-existing libget repo.
+		self.repo_buildable = False
 		self.updatingRepo = False #This flag is True if and only if the output directory is a valid libget repo; it tells Spinarak to skip repackaging packages that haven't changed.
 		if os.path.isdir(self.output_dir):
 			if len(os.listdir(self.output_dir)) == 0: pass
 			else:
 				try:
 					json.load(open(os.path.join(self.output_dir, "repo.json")))
+					self.repo_buildable = True
 					self.updatingRepo = True
 					print("INFO: the output directory is already a libget repo! Updating the existing repo.")
 				except:
 					if not self.ignore_non_empty_output:
-						print("ERROR: output directory is not empty and is not a libget repo. Stopping.")
-						sys.exit(0)
-		else: os.makedirs(self.output_dir)
+						print("ERROR: output directory is not empty and is not a libget repo. Repo may not be spun.\n\t- The '-i' argument can bypass this check.")
+						return
+					else:
+						self.repo_buildable = True
+		else: 
+			os.makedirs(self.output_dir)
+			self.repo_buildable = True
 
 		if not os.path.isdir(os.path.join(self.output_dir, "zips")):
 			os.mkdir(os.path.join(self.output_dir, "zips"))
 
 	def spin(self):
+		if not self.repo_buildable:
+			print("ERROR: Repo is not buildable, not continuing...")
+			return
 		repojson={'packages':[]} #Instantiate repo.json format
 		failedPackages=[]
 		skippedPackages=[]
@@ -277,12 +285,13 @@ class Spinner:
 if __name__ == "__main__":
 	underprint("This is Spinarak v"+version+" by CompuCat and the 4TU Team.")
 
-	parser = argparse.ArgumentParser(description='Spinarak by CompuCat, LyfeOnEdge, and the 4TU Team.\n\tBuild and maintain libget repositories from pkgbuild metadata repositories.')
+	parser = argparse.ArgumentParser(description='Spinarak by CompuCat, LyfeOnEdge, and the 4TU Team.\n\tBuild libget repositories from pkgbuild metadata repositories.')
 	parser.add_argument("-o", "--output", help = "Repository output directory")
 	parser.add_argument("-t", "--target", help = "Target metadata repoistory directory")
-	parser.add_argument("-i", "--ignore_non_empty_output", action = 'store_true', help = "Ignore error raised when trying to build a repo for the first time in a non-empty output dir")
+	parser.add_argument("-i", "--ignore_non_empty_output", action = "store_true", help = "Ignore error raised when trying to build a repo for the first time in a non-empty output dir")
 	args = parser.parse_args()
 
+	#Prioritize passed args over config
 	target = args.target or config.target_dir
 	output = args.output or config.output_dir
 
