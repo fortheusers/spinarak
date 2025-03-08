@@ -1,8 +1,6 @@
 # Spinarak
 
-![logo](https://cdn.bulbagarden.net/upload/thumb/7/75/167Spinarak.png/100px-167Spinarak.png)
-
-**Spinarak** is a tool to generate a [libget](https://github.com/vgmoose/libget) repo, given a set of `pkgbuild` files describing packages.
+**Spinarak** is a tool to generate a [libget](https://github.com/fortheusers/libget) repo, given a set of `pkgbuild` files describing packages.
 
 Developed internally by ForTheUsers (4TU) to power the Homebrew App Store, it is the successor to the original `repogen.py` script.
 
@@ -57,6 +55,7 @@ Spinarak is licensed under....well, I haven't decided, yet. If you happen to use
 
 Contributors:
 - [CompuCat](https://compucat.me/about) - primary development
+- [LyfeOnEdge](https://github.com/lyfeonedge) - zipping and parallelization enhancements
 - [vgmoose](https://vgmoose.com) - Dockerization, integration with the Homebrew App Store
 - [crc32](https://crc32.dev) and [pwsincd](https://github.com/pwsincd) - Referencing libget formatting
 - [Whovian9369](https://https://cybre.space/@Whovian9369) - Writing documentation
