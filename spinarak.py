@@ -5,7 +5,7 @@ from datetime import datetime
 import urllib.request
 from zipfile import ZipFile, ZIP_DEFLATED
 
-version='0.0.8'
+version='0.0.9'
 
 config_default = """# spinarak config
 target_dir = "."
@@ -24,6 +24,8 @@ if not os.path.isfile(os.path.join(os.path.dirname(__file__), "config.py")):
 
 global config
 import config
+
+cdnUrl = None
 
 # Original zipit code:
 # http://stackoverflow.com/a/6078528
@@ -85,6 +87,16 @@ class Spinner:
 		#Instantiate output directory if needed and look for pre-existing libget repo.
 		self.repo_buildable = False
 		self.updatingRepo = False #This flag is True if and only if the output directory is a valid libget repo; it tells Spinarak to skip repackaging packages that haven't changed.
+		
+		if cdnUrl:
+			print(f"INFO: (CI Mode) Downloading existing repo.json from {cdnUrl}")
+			# if we're running in CI mode, download an existing repo.json from the CDN
+			req = urllib.request.Request(cdnUrl)
+			with urllib.request.urlopen(req) as response:
+				with open(os.path.join(self.output_dir, "repo.json"), "wb") as f:
+					f.write(response.read())
+			# this file's precense will be detected as an existing repo
+		
 		if os.path.isdir(self.output_dir):
 			if len(os.listdir(self.output_dir)) == 0: pass
 			else:
@@ -211,6 +223,12 @@ class Spinner:
 		print("Built "+str(len(packages)-len(failedPackages)-len(skippedPackages))+" of "+str(len(packages))+" packages.")
 		if len(failedPackages)>0: print("Failed packages: "+str(failedPackages))
 		if len(skippedPackages)>0: print("Skipped packages: "+str(skippedPackages))
+		if cdnUrl:
+			# write updated files to a txt file
+			updatedPackages = set(packages) - set(failedPackages) - set(skippedPackages)
+			with open("updated_packages.txt", "w") as f:
+				f.write(",".join(list(updatedPackages)))
+				print("Wrote updated packages string to updated_packages.txt")
 		print("All done. Enjoy your new repo :)")
 
 	def handle_asset(self, pkg, asset, manifest, prepend="\t"): #Downloads and places a given asset.
@@ -289,11 +307,14 @@ if __name__ == "__main__":
 	parser.add_argument("-o", "--output", help = "Repository output directory")
 	parser.add_argument("-t", "--target", help = "Target metadata repoistory directory")
 	parser.add_argument("-i", "--ignore_non_empty_output", action = "store_true", help = "Ignore error raised when trying to build a repo for the first time in a non-empty output dir")
+	parser.add_argument("-c", "--cdn-url", help = "(CI Mode) Download existing repo from the CDN URL and write updated packages to a text file")
 	args = parser.parse_args()
 
 	#Prioritize passed args over config
 	target = args.target or config.target_dir
 	output = args.output or config.output_dir
+
+	cdnUrl = args.cdn_url or None
 
 	spinner = Spinner(target, output, args.ignore_non_empty_output)
 	spinner.spin()
