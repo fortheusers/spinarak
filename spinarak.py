@@ -147,7 +147,9 @@ def main():
 					continue
 				else:
 					underprint("Now updating: "+pkgbuild['info']['title'])
-					os.remove(config["output_directory"]+"/zips/"+pkg+".zip")
+					zipPath = config["output_directory"]+"/zips/"+pkg+".zip"
+					if os.path.exists(zipPath): # might not exist if it's a force update or CI update
+						os.remove(zipPath)
 		else: underprint("Now packaging: "+pkgbuild['info']['title'])
 		manifest=open(pkg+"/manifest.install", 'w')
 
