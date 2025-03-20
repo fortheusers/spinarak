@@ -90,11 +90,12 @@ def main():
 	
 	if cdnUrl:
 		print(f"INFO: (CI Mode) Downloading existing repo.json from {cdnUrl}")
+		os.makedirs("public", exist_ok=True)
 		# if we're running in CI mode, download an existing repo.json from the CDN
 		req = urllib.request.Request(cdnUrl)
 		with urllib.request.urlopen(req) as response:
-			with open(config["output_directory"]+"/repo.json") as f:
-				f.write(response.read())
+			with open(config["output_directory"]+"/repo.json", "w") as f:
+				f.write(response.read().decode("utf-8"))
 		# this file's precense will be detected as an existing repo
 
 	#Instantiate output directory if needed and look for pre-existing libget repo.
