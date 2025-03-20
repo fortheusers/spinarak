@@ -8,13 +8,15 @@ import shutil
 import tempfile
 import glob
 
-version='0.0.7'
+version='0.0.9'
 
 config_default={
 	"ignored_directories": [".git"],
 	"output_directory": "public",
 	"valid_binary_extensions": (".nro", ".elf", ".rpx", ".cia", ".3dsx", ".dol")
 }
+
+cdnUrl = None
 
 ### Methods, etc.
 def underprint(x): print(x+"\n"+('-'*len(x.strip()))) #Prints with underline. Classy, eh?
@@ -85,6 +87,15 @@ def main():
 	except:
 		print("Couldn't load config.json; using default configuration.")
 		config=config_default
+	
+	if cdnUrl:
+		print(f"INFO: (CI Mode) Downloading existing repo.json from {cdnUrl}")
+		# if we're running in CI mode, download an existing repo.json from the CDN
+		req = urllib.request.Request(cdnUrl)
+		with urllib.request.urlopen(req) as response:
+			with open(config["output_directory"]+"/repo.json") as f:
+				f.write(response.read())
+		# this file's precense will be detected as an existing repo
 
 	#Instantiate output directory if needed and look for pre-existing libget repo.
 	updatingRepo=False #This flag is True if and only if the output directory is a valid libget repo; it tells Spinarak to skip repackaging packages that haven't changed.
@@ -202,6 +213,18 @@ def main():
 	print("Built "+str(len(pkg_dirs)-len(failedPackages)-len(skippedPackages))+" of "+str(len(pkg_dirs))+" packages.")
 	if len(failedPackages)>0: print("Failed packages: "+str(failedPackages))
 	if len(skippedPackages)>0: print("Skipped packages: "+str(skippedPackages))
+
+	if cdnUrl:
+		# write updated files to a txt file
+		updatedPackages = set(pkg_dirs) - set(failedPackages) - set(skippedPackages)
+		with open("updated_packages.txt", "w") as f:
+			f.write(",".join(list(updatedPackages)))
+			print("(CI Mode) Wrote updated packages string to updated_packages.txt")
+	
 	print("All done. Enjoy your new repo :)")
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+	if len(sys.argv) > 1 and sys.argv[1] == "-c" and sys.argv[2] != "":
+		cdnUrl = sys.argv[2]
+		print(f"INFO: (CI Mode) Using {cdnUrl} as the CDN URL")
+	main()
