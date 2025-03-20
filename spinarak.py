@@ -224,6 +224,10 @@ def main():
 	
 	print("All done. Enjoy your new repo :)")
 
+	# if we had any failed packages, exit with a non-zero status
+	if len(failedPackages) > 0:
+		sys.exit(1)
+
 if __name__ == "__main__":
 	if len(sys.argv) > 1 and sys.argv[1] == "-c" and sys.argv[2] != "":
 		cdnUrl = sys.argv[2]
