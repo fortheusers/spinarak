@@ -17,6 +17,8 @@ config_default={
 }
 
 cdnUrl = None
+# set of files to always update, regardless of version
+alwaysUpdate = set()
 
 ### Methods, etc.
 def underprint(x): print(x+"\n"+('-'*len(x.strip()))) #Prints with underline. Classy, eh?
@@ -129,15 +131,16 @@ def main():
 			for x in ('category','package','license','title','url','author','version','details','description'): #Check for required components
 				if x not in pkgbuild and x not in pkgbuild['info']: raise LookupError("pkgbuild.json is missing the "+x+" component.")
 		except Exception as e:
-			 failedPackages.append(pkg)
-			 print("ERROR: failed to build "+pkg+"! Error message: "+str(e)+"\n")
-			 continue
+			failedPackages.append(pkg)
+			print("ERROR: failed to build "+pkg+"! Error message: "+str(e)+"\n")
+			continue
 
 		if updatingRepo: #Avoid rebuilding packages that haven't changed.
 			prevPkgInfo=next(((pkg for pkg in previousRepojson['packages'] if pkg['name']==pkgbuild['package'])), None) #Search for existing package
 			if prevPkgInfo == None: underprint("Now packaging: "+pkgbuild['info']['title'])
 			else:
-				if prevPkgInfo['version']==pkgbuild['info']['version']:
+				# only refresh if the version has changed or the package is marked for always update
+				if prevPkgInfo['version']==pkgbuild['info']['version'] and pkg not in alwaysUpdate:
 					print(pkgbuild['info']['title']+" hasn't changed, skipping.\n")
 					skippedPackages.append(pkg)
 					repojson['packages'].append(prevPkgInfo) #Copy package info from previous repo.json
@@ -172,6 +175,25 @@ def main():
 		json.dump(pkginfo, open(pkg+"/info.json", "w"), indent=1) # Output package info to info.json
 		print("info.json generated.")
 		manifest.close()
+
+		# re-open the manifest, and ensure that there are no duplicate entries
+		seen = set()
+		entries = []
+		with open(pkg+"/manifest.install", "r") as f:
+			for line in f.readlines()[::-1]: # from bottom to top
+				line = line.strip()
+				if not line:
+					continue
+				# assume the first character is the type
+				if line[2:] in seen:
+					continue # skip already seen entries
+				seen.add(line[2:])
+				entries.append(line) # preserves the type
+		# overwrite the manifest with the deduplicated entries
+		with open(pkg+"/manifest.install", "w") as f:
+			for line in entries[::-1]:
+				f.write(line + "\n")
+					
 		print("manifest.install generated.")
 		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
 		shutil.make_archive(config["output_directory"]+"/zips/"+pkg, 'zip', pkg) # Zip folder and output to out directory
@@ -229,7 +251,15 @@ def main():
 		sys.exit(1)
 
 if __name__ == "__main__":
-	if len(sys.argv) > 1 and sys.argv[1] == "-c" and sys.argv[2] != "":
-		cdnUrl = sys.argv[2]
-		print(f"INFO: (CI Mode) Using {cdnUrl} as the CDN URL")
+	import argparse
+	parser = argparse.ArgumentParser(description="Spinarak: a libget package builder")
+	parser.add_argument("-c", help="use the given CDN URL to download an existing repo.json")
+	parser.add_argument("packages", nargs="*", help="list of packages to force rebuild, regardless of version")
+	args = parser.parse_args()
+	if args.c:
+		cdnUrl = args.c
+		print(f"INFO: Using {cdnUrl} as the CDN URL")
+	if args.packages:
+		print(f"INFO: Manually going to update {args.packages}")
+		alwaysUpdate = set(args.packages)
 	main()
