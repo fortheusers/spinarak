@@ -259,10 +259,21 @@ def main():
 						if file.endswith(tuple(config["valid_binary_extensions"])):
 							repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
 							broken=True
+							# make sure the filemagic of this isn't Zip
+							with open(os.path.join(dirpath, file), "rb") as f:
+								if f.read(2) == b"PK":
+									print(f"ERROR: {file} is a zip file, not a binary. Check that the pkgbuild is extracting the zip file correctly.")
+									failedPackages.append(pkg)
+									failedPkg = True
+									broken = False
+									break
 							break
 						if broken: break
 				if not broken: print("WARNING: "+pkgbuild['info']['title']+"'s binary path not specified in pkgbuild.json, and no binary found!")
 				else: print("WARNING: binary path not specified in pkgbuild.json; guessing "+repo_extended_info['binary']+".")
+		if failedPkg:
+			continue
+		
 		repo_extended_info.update(pkginfo) #Add package info and extended info together
 
 		repojson['packages'].append(repo_extended_info) #Append package info to repo.json
