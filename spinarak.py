@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import glob
 import zipfile
+import hashlib
 
 version='0.0.9'
 
@@ -32,6 +33,17 @@ def remove_prefix(text, prefix): #thanks SE for community-standard method, strip
         return text[len(prefix):]
     return text
 
+def downloadFileDirect(url, dest): #Downloads a file from a URL to a destination path on disk
+	# we try to use wget if it's present, as this preserves the created at date from the server
+	if shutil.which("wget"):
+		os.system(f"wget -O {dest} {url}")
+	# just use urllib
+	with urllib.request.urlopen(url) as response, open(dest, 'wb') as out_file:
+		shutil.copyfileobj(response, out_file)
+	# ensure the modified and accesss times are the same as the birth time
+	createdTime = os.stat(dest).st_birthtime
+	os.utime(dest, (createdTime, createdTime))
+
 def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=0): #Downloads and places a given asset.
 	if subasset: asset_file=open(asset['url'], "rb")
 	elif os.path.isfile(pkg+'/'+asset['url']): # Check if file exists locally
@@ -40,18 +52,18 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=
 		shutil.copyfileobj(open(pkg+'/'+asset['url'], "rb"), asset_file)
 		asset_file.seek(0)
 	else: # Download asset from URL
-		print(prepend+"Downloading "+asset['url']+"...", end="")
+		print(prepend+"Downloading "+asset['url']+"...")
 		sys.stdout.flush()
-		asset_file=tempfile.NamedTemporaryFile()
-		shutil.copyfileobj(urllib.request.urlopen(asset['url']), asset_file)
-		asset_file.seek(0)
-		print("done.")
-		#asset_file_path=pkg+'/temp_asset'
+		random_path = tempfile.NamedTemporaryFile().name + ".download"
+		# for downloaded files, it's been moved manually to a temp location, so don't use a tmpfile
+		downloadFileDirect(asset['url'], random_path)
+		asset_file = open(random_path, "rb")
+		print("File downloaded.")
 	if asset['type'] in ('update', 'get', 'local', 'extract'):
 		print(prepend+"- Type is "+asset['type']+", moving to /"+asset['dest'].strip("/"))
 		manifest.write(asset['type'].upper()[0]+": "+asset['dest'].strip("/")+"\n") #Write manifest.install
 		os.makedirs(os.path.dirname(pkg+"/"+asset['dest'].strip("/")), exist_ok=True)
-		shutil.copyfileobj(asset_file, open(pkg+"/"+asset['dest'].strip("/"), "wb"))
+		shutil.copy2(asset_file.name, pkg+"/"+asset['dest'].strip("/"))
 	elif asset['type'] == 'icon':
 		print(prepend+"- Type is icon, moving to /icon.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
@@ -166,18 +178,16 @@ def main():
 				screenCount += 1
 			handleAsset(pkg, asset, manifest, screenCount=screenCount)
 
-		pkginfo={ #Format package info
-			'category': pkgbuild['info']['category'],
-			'name': pkgbuild['package'],
-			'license': pkgbuild['info']['license'],
+		pkginfo={ #Format package info.json
+			# packages that describe the app itself
 			'title': pkgbuild['info']['title'],
-			'url': pkgbuild['info']['url'],
+			'description': pkgbuild['info']['description'],
 			'author': pkgbuild['info']['author'],
 			'version': pkgbuild['info']['version'],
+			'license': pkgbuild['info']['license'],
+			'url': pkgbuild['info']['url'],
+			'category': pkgbuild['info']['category'],
 			'details': pkgbuild['info']['details'],
-			'screens': screenCount,
-			'description': pkgbuild['info']['description'],
-			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
 		}
 		try: pkginfo['changelog']=pkgbuild['changelog']
 		except:
@@ -240,24 +250,23 @@ def main():
 		shutil.copyfile(pkg+'/manifest.install', config["output_directory"]+'/packages/'+pkg+'/manifest.install')
 		print("Copied info.json and manifest.install to public package folder")
 
-		repo_extended_info={ #repo.json has package info plus extended info
-			'extracted': get_size(pkg)//1024,
-			'filesize': os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024,
-			'web_dls': -1, #TODO: get these counts from stats API
-			'app_dls': -1 #TODO
+		repo_extended_info={
+			"name": pkgbuild['package'],
 		}
+		# add in all info.json info after the name
+		repo_extended_info.update(pkginfo)
+
 		#Attempt to read binary path from pkgbuild; otherwise, guess it.
-		try: repo_extended_info['binary']=pkgbuild['info']['binary']
+		try: binaryPath=pkgbuild['info']['binary']
 		except:
 			if pkginfo['category']=="theme":
-				repo_extended_info['binary']="none"
 				print("INFO: binary path not specified. Category is theme, so autofilling \"none\".")
 			else:
 				broken=False
 				for (dirpath, dirnames, filenames) in os.walk(pkg):
 					for file in filenames:
 						if file.endswith(tuple(config["valid_binary_extensions"])):
-							repo_extended_info['binary']=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
+							binaryPath=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
 							broken=True
 							# make sure the filemagic of this isn't Zip
 							with open(os.path.join(dirpath, file), "rb") as f:
@@ -270,11 +279,24 @@ def main():
 							break
 						if broken: break
 				if not broken: print("WARNING: "+pkgbuild['info']['title']+"'s binary path not specified in pkgbuild.json, and no binary found!")
-				else: print("WARNING: binary path not specified in pkgbuild.json; guessing "+repo_extended_info['binary']+".")
+				else: print("WARNING: binary path not specified in pkgbuild.json; using: "+binaryPath)
 		if failedPkg:
 			continue
-		
-		repo_extended_info.update(pkginfo) #Add package info and extended info together
+
+		# add in the size of the extracted and zipped files
+		repo_extended_info.update({ #repo.json has package info plus extended info
+			'filesize': os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024,
+			'extracted': get_size(pkg)//1024,
+			'md5': hashlib.md5(open(config["output_directory"]+"/zips/"+pkg+".zip", "rb").read()).hexdigest(),
+			'sha256': hashlib.sha256(open(config["output_directory"]+"/zips/"+pkg+".zip", "rb").read()).hexdigest(),
+			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
+			# file birth time of the binary, if present, otherwise any file in the manifest
+			'appCreated': str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_birthtime).strftime('%Y-%m-%d')) if binaryPath else str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_birthtime).strftime('%Y-%m-%d')),
+			'binary': binaryPath if binaryPath else "none",
+			'screens': screenCount,
+			'web_dls': -1, #TODO: get these counts from stats API
+			'app_dls': -1 #TODO
+		})
 
 		repojson['packages'].append(repo_extended_info) #Append package info to repo.json
 		print() #Console newline at end of package. for prettiness
