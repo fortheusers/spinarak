@@ -7,6 +7,7 @@ import urllib.request
 import shutil
 import tempfile
 import glob
+import zipfile
 
 version='0.0.9'
 
@@ -31,7 +32,7 @@ def remove_prefix(text, prefix): #thanks SE for community-standard method, strip
         return text[len(prefix):]
     return text
 
-def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads and places a given asset.
+def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=0): #Downloads and places a given asset.
 	if subasset: asset_file=open(asset['url'], "rb")
 	elif os.path.isfile(pkg+'/'+asset['url']): # Check if file exists locally
 		print(prepend+"Asset is local.")
@@ -56,11 +57,16 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t"): #Downloads 
 		shutil.copyfileobj(asset_file, open(pkg+'/icon.png', "wb"))
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
 		shutil.copyfile(pkg+'/icon.png', config["output_directory"]+'/packages/'+pkg+'/icon.png')
-	elif asset['type'] == 'screenshot':
-		print(prepend+"- Type is screenshot, moving to /screen.png")
+	elif asset['type'] == 'banner':
+		print(prepend+"- Type is banner, moving to /screen.png")
 		shutil.copyfileobj(asset_file, open(pkg+'/screen.png', "wb"))
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
 		shutil.copyfile(pkg+'/screen.png', config["output_directory"]+'/packages/'+pkg+'/screen.png')
+	elif asset['type'] == 'screenshot':
+		print(prepend+"- Type is screenshot, moving to /screen"+str(screenCount)+".png")
+		shutil.copyfileobj(asset_file, open(pkg+'/screen'+str(screenCount)+'.png', "wb"))
+		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
+		shutil.copyfile(pkg+'/screen'+str(screenCount)+'.png', config["output_directory"]+'/packages/'+pkg+'/screen'+str(screenCount)+'.png')
 	elif asset['type'] == 'zip':
 		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 		with tempfile.TemporaryDirectory() as tempdirname:
@@ -154,7 +160,11 @@ def main():
 		manifest=open(pkg+"/manifest.install", 'w')
 
 		print(str(len(pkgbuild['assets']))+" asset(s) detected")
-		for asset in pkgbuild['assets']: handleAsset(pkg, asset, manifest)
+		screenCount = 0
+		for asset in pkgbuild['assets']:
+			if asset['type'] == 'screenshot':
+				screenCount += 1
+			handleAsset(pkg, asset, manifest, screenCount=screenCount)
 
 		pkginfo={ #Format package info
 			'category': pkgbuild['info']['category'],
@@ -165,6 +175,7 @@ def main():
 			'author': pkgbuild['info']['author'],
 			'version': pkgbuild['info']['version'],
 			'details': pkgbuild['info']['details'],
+			'screens': screenCount,
 			'description': pkgbuild['info']['description'],
 			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
 		}
@@ -189,7 +200,7 @@ def main():
 				# assume the first character is the type
 				if line[2:] in seen:
 					continue # skip already seen entries
-				seen.add(line[2:])
+				seen.add(line[3:])
 				entries.append(line) # preserves the type
 		# overwrite the manifest with the deduplicated entries
 		with open(pkg+"/manifest.install", "w") as f:
@@ -198,10 +209,34 @@ def main():
 					
 		print("manifest.install generated.")
 		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
-		shutil.make_archive(config["output_directory"]+"/zips/"+pkg, 'zip', pkg) # Zip folder and output to out directory
-		# TODO: above make_archive includes the pkgbuild. Rewriting to use the zipfile module directly would allow avoiding the pkgbuild in the output zip
+
+		# go through and zip only the files that we know for sure are in the manifest
+		outputZip = config["output_directory"]+"/zips/"+pkg+".zip"
+		failedPkg = False
+		with zipfile.ZipFile(outputZip, "w") as z:
+			for line in entries:
+				line = line.strip()[3:]
+				if os.path.isfile(pkg+"/"+line):
+					z.write(pkg+"/"+line, line)
+				else:
+					print(f"ERROR: {line} is in the manifest, but does not exist at {pkg}/{line}")
+					failedPackages.append(pkg)
+					failedPkg = True
+					break
+			# add in the info.json and manifest.install
+			z.write(pkg+"/info.json", "info.json")
+			z.write(pkg+"/manifest.install", "manifest.install")
+		if failedPkg:
+			continue
+
 		print("Package written to "+config["output_directory"]+"/zips/"+pkg+".zip")
 		print("Zipped package is "+str(os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024)+" KiB large.")
+
+		# copy over the manifest.install and info.json to the public directory
+		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
+		shutil.copyfile(pkg+'/info.json', config["output_directory"]+'/packages/'+pkg+'/info.json')
+		shutil.copyfile(pkg+'/manifest.install', config["output_directory"]+'/packages/'+pkg+'/manifest.install')
+		print("Copied info.json and manifest.install to public package folder")
 
 		repo_extended_info={ #repo.json has package info plus extended info
 			'extracted': get_size(pkg)//1024,
