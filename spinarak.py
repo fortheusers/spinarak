@@ -210,9 +210,11 @@ def main():
 		print("manifest.install generated.")
 		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
 
-		# go through and zip only the files that we know for sure are in the manifest
+		# make the zip dir if it doesn't exist
+		os.makedirs(config["output_directory"]+"/zips", exist_ok=True)
 		outputZip = config["output_directory"]+"/zips/"+pkg+".zip"
 		failedPkg = False
+		# go through and zip only the files that we know for sure are in the manifest
 		with zipfile.ZipFile(outputZip, "w", zipfile.ZIP_DEFLATED) as z:
 			for line in entries[::-1]:
 				line = line.strip()[3:]
