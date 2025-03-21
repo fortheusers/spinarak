@@ -213,8 +213,8 @@ def main():
 		# go through and zip only the files that we know for sure are in the manifest
 		outputZip = config["output_directory"]+"/zips/"+pkg+".zip"
 		failedPkg = False
-		with zipfile.ZipFile(outputZip, "w") as z:
-			for line in entries:
+		with zipfile.ZipFile(outputZip, "w", zipfile.ZIP_DEFLATED) as z:
+			for line in entries[::-1]:
 				line = line.strip()[3:]
 				if os.path.isfile(pkg+"/"+line):
 					z.write(pkg+"/"+line, line)
