@@ -22,6 +22,11 @@ cdnUrl = None
 # set of files to always update, regardless of version
 alwaysUpdate = set()
 
+# HBAS uses an old UK style timestamp, and relies on this for sorting
+timestampFormat = "%d/%m/%Y"
+
+archiveTypes = set(["zip", "7z", "rar"])
+
 ### Methods, etc.
 def underprint(x): print(x+"\n"+('-'*len(x.strip()))) #Prints with underline. Classy, eh?
 
@@ -98,12 +103,13 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=
 		shutil.copyfileobj(asset_file, open(pkg+'/screen'+str(screenCount)+'.png', "wb"))
 		os.makedirs(config["output_directory"]+'/packages/'+pkg, exist_ok=True)
 		shutil.copyfile(pkg+'/screen'+str(screenCount)+'.png', config["output_directory"]+'/packages/'+pkg+'/screen'+str(screenCount)+'.png')
-	elif asset['type'] == 'zip':
-		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
+	elif asset['type'] in archiveTypes:
+		archiveType = asset['type']
+		print(prepend+"- Type is zip/extract, has "+str(len(asset[archiveType]))+" sub-asset(s)")
 		with tempfile.TemporaryDirectory() as tempdirname:
 			if extractArchiveDirect(asset_file.name, tempdirname):
 				handledSubAssets=0
-				for subasset in asset['zip']:
+				for subasset in asset[archiveType]:
 					for filepath in pathlib.Path(tempdirname).glob(subasset['path'].lstrip("/")):
 						if not os.path.isdir(filepath): #Don't try to handle a directory as an asset - assets must be single files
 							#TODO: check that rstrip to see what other globbable weird characters need stripping
@@ -115,7 +121,7 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=
 							}
 							retVal |= handleAsset(pkg, subassetInfo, manifest, subasset=True, prepend=prepend+"\t")
 							handledSubAssets+=1
-				if handledSubAssets!=len(asset['zip']): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset['zip']))+" listed.")
+				if handledSubAssets!=len(asset[archiveType]): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset[archiveType]))+" listed.")
 			else:
 				print("ERROR: failed to extract zip file.")
 				retVal = False
@@ -319,17 +325,25 @@ def main():
 		if failedPkg:
 			continue
 		
+		# if the manifest is empty, it's a bad package
+		if len(entries) == 0:
+			print(f"ERROR: {pkg} has an empty manifest")
+			failedPackages.append(pkg)
+			continue
+		
 		supportsBirthtime = hasattr(os.stat("."), 'st_birthtime')
+		# 2 bools: does our OS support birth times X do we have a binary file
 		if binaryPath:
 			if supportsBirthtime:
-				createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_birthtime).strftime('%Y-%m-%d'))
+				createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_birthtime).strftime(timestampFormat))
 			else:
-				createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_mtime).strftime('%Y-%m-%d'))
+				createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_mtime).strftime(timestampFormat))
 		else:
+			firstFileTime = os.stat(pkg+"/"+entries[0][3:])
 			if supportsBirthtime:
-				createdTime =  str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_birthtime).strftime('%Y-%m-%d'))
+				createdTime =  str(datetime.utcfromtimestamp(firstFileTime.st_birthtime).strftime(timestampFormat))
 			else:
-				createdTime =  str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_mtime).strftime('%Y-%m-%d'))
+				createdTime =  str(datetime.utcfromtimestamp(firstFileTime.st_mtime).strftime(timestampFormat))
 
 		# add in the size of the extracted and zipped files
 		repo_extended_info.update({ #repo.json has package info plus extended info
@@ -337,7 +351,7 @@ def main():
 			'extracted': get_size(pkg)//1024,
 			'md5': hashlib.md5(open(config["output_directory"]+"/zips/"+pkg+".zip", "rb").read()).hexdigest(),
 			'sha256': hashlib.sha256(open(config["output_directory"]+"/zips/"+pkg+".zip", "rb").read()).hexdigest(),
-			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
+			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime(timestampFormat)),
 			# file birth time of the binary, if present, otherwise any file in the manifest
 			'appCreated': createdTime,
 			'binary': binaryPath if binaryPath else "none",
