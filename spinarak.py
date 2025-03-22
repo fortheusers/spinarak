@@ -6,7 +6,7 @@ from datetime import datetime
 import urllib.request
 import shutil
 import tempfile
-import glob
+import pathlib
 import zipfile
 import hashlib
 
@@ -104,9 +104,10 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=
 			if extractArchiveDirect(asset_file.name, tempdirname):
 				handledSubAssets=0
 				for subasset in asset['zip']:
-					for filepath in glob.glob(tempdirname+"/"+subasset['path'].lstrip("/"), recursive=True):
+					for filepath in pathlib.Path(tempdirname).glob(subasset['path'].lstrip("/")):
 						if not os.path.isdir(filepath): #Don't try to handle a directory as an asset - assets must be single files
 							#TODO: check that rstrip to see what other globbable weird characters need stripping
+							filepath = str(filepath)
 							subassetInfo={
 								'url':filepath,
 								'type':subasset['type'],
@@ -239,7 +240,7 @@ def main():
 				if not line:
 					continue
 				# assume the first character is the type
-				if line[2:] in seen:
+				if line[3:] in seen:
 					continue # skip already seen entries
 				seen.add(line[3:])
 				entries.append(line) # preserves the type
@@ -270,6 +271,12 @@ def main():
 			z.write(pkg+"/manifest.install", "manifest.install")
 		if failedPkg:
 			continue
+		
+		print()
+		print("(INFO) Manifest contents:")
+		for line in entries[::-1]:
+			print(line)
+		print()
 
 		print("Package written to "+config["output_directory"]+"/zips/"+pkg+".zip")
 		print("Zipped package is "+str(os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024)+" KiB large.")
@@ -304,7 +311,6 @@ def main():
 									print(f"ERROR: {file} is a zip file, not a binary. Check that the pkgbuild is extracting the zip file correctly.")
 									failedPackages.append(pkg)
 									failedPkg = True
-									broken = False
 									break
 							break
 						if broken: break
@@ -313,10 +319,17 @@ def main():
 		if failedPkg:
 			continue
 		
-		if hasattr(os.stat(pkg+binaryPath), 'st_birthtime'):
-			createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_birthtime).strftime('%Y-%m-%d')) if binaryPath else str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_birthtime).strftime('%Y-%m-%d'))
+		supportsBirthtime = hasattr(os.stat("."), 'st_birthtime')
+		if binaryPath:
+			if supportsBirthtime:
+				createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_birthtime).strftime('%Y-%m-%d'))
+			else:
+				createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_mtime).strftime('%Y-%m-%d'))
 		else:
-			createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_mtime).strftime('%Y-%m-%d')) if binaryPath else str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_mtime).strftime('%Y-%m-%d'))
+			if supportsBirthtime:
+				createdTime =  str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_birthtime).strftime('%Y-%m-%d'))
+			else:
+				createdTime =  str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_mtime).strftime('%Y-%m-%d'))
 
 		# add in the size of the extracted and zipped files
 		repo_extended_info.update({ #repo.json has package info plus extended info
