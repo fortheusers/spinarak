@@ -37,14 +37,29 @@ def downloadFileDirect(url, dest): #Downloads a file from a URL to a destination
 	# we try to use wget if it's present, as this preserves the created at date from the server
 	if shutil.which("wget"):
 		os.system(f"wget -O {dest} {url}")
-	# just use urllib
-	with urllib.request.urlopen(url) as response, open(dest, 'wb') as out_file:
-		shutil.copyfileobj(response, out_file)
+	else:
+		# just use urllib
+		with urllib.request.urlopen(url) as response, open(dest, 'wb') as out_file:
+			shutil.copyfileobj(response, out_file)
 	# ensure the modified and accesss times are the same as the birth time
 	createdTime = os.stat(dest).st_birthtime
 	os.utime(dest, (createdTime, createdTime))
 
+def extractArchiveDirect(archive, dest): #Extracts an archive to a destination path on disk
+	print("(INFO) Extracting "+archive+" to "+dest+"...")
+	if shutil.which("7zz"):
+		print("(INFO) Using 7zz to extract the archive")
+		os.system(f"7zz x {archive} -o{dest}")
+	else:
+		# this will only work on zips
+		if not zipfile.is_zipfile(archive):
+			print("ERROR: only zip files are supported for extraction")
+			return False
+		shutil.unpack_archive(archive, extract_dir=dest, format="zip")
+	return True
+
 def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=0): #Downloads and places a given asset.
+	retVal = True
 	if subasset: asset_file=open(asset['url'], "rb")
 	elif os.path.isfile(pkg+'/'+asset['url']): # Check if file exists locally
 		print(prepend+"Asset is local.")
@@ -82,22 +97,26 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=
 	elif asset['type'] == 'zip':
 		print(prepend+"- Type is zip, has "+str(len(asset['zip']))+" sub-asset(s)")
 		with tempfile.TemporaryDirectory() as tempdirname:
-			shutil.unpack_archive(asset_file.name, extract_dir=tempdirname, format="zip")
-			handledSubAssets=0
-			for subasset in asset['zip']:
-				for filepath in glob.glob(tempdirname+"/"+subasset['path'].lstrip("/"), recursive=True):
-					if not os.path.isdir(filepath): #Don't try to handle a directory as an asset - assets must be single files
-						#TODO: check that rstrip to see what other globbable weird characters need stripping
-						subassetInfo={
-							'url':filepath,
-							'type':subasset['type'],
-							'dest':("/"+subasset['dest'].lstrip("/")+remove_prefix(filepath, tempdirname+"/"+subasset['path'].lstrip("/").rstrip(".*/"))) if 'dest' in subasset else None
-						}
-						handleAsset(pkg, subassetInfo, manifest, subasset=True, prepend=prepend+"\t")
-						handledSubAssets+=1
-			if handledSubAssets!=len(asset['zip']): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset['zip']))+" listed.")
+			if extractArchiveDirect(asset_file.name, tempdirname):
+				handledSubAssets=0
+				for subasset in asset['zip']:
+					for filepath in glob.glob(tempdirname+"/"+subasset['path'].lstrip("/"), recursive=True):
+						if not os.path.isdir(filepath): #Don't try to handle a directory as an asset - assets must be single files
+							#TODO: check that rstrip to see what other globbable weird characters need stripping
+							subassetInfo={
+								'url':filepath,
+								'type':subasset['type'],
+								'dest':("/"+subasset['dest'].lstrip("/")+remove_prefix(filepath, tempdirname+"/"+subasset['path'].lstrip("/").rstrip(".*/"))) if 'dest' in subasset else None
+							}
+							retVal |= handleAsset(pkg, subassetInfo, manifest, subasset=True, prepend=prepend+"\t")
+							handledSubAssets+=1
+				if handledSubAssets!=len(asset['zip']): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset['zip']))+" listed.")
+			else:
+				print("ERROR: failed to extract zip file.")
+				retVal = False
 	else: print("ERROR: asset of unknown type detected. Skipping.")
 	asset_file.close()
+	return retVal
 
 def main():
 	#Initialize script and create output directory.
@@ -173,10 +192,17 @@ def main():
 
 		print(str(len(pkgbuild['assets']))+" asset(s) detected")
 		screenCount = 0
+		failedPkg = False
 		for asset in pkgbuild['assets']:
 			if asset['type'] == 'screenshot':
 				screenCount += 1
-			handleAsset(pkg, asset, manifest, screenCount=screenCount)
+			res = handleAsset(pkg, asset, manifest, screenCount=screenCount)
+			if not res:
+				# if we failed to handle an asset, skip the package
+				failedPackages.append(pkg)
+				failedPkg = True
+		if failedPkg:
+			continue
 
 		pkginfo={ #Format package info.json
 			# packages that describe the app itself
@@ -223,7 +249,6 @@ def main():
 		# make the zip dir if it doesn't exist
 		os.makedirs(config["output_directory"]+"/zips", exist_ok=True)
 		outputZip = config["output_directory"]+"/zips/"+pkg+".zip"
-		failedPkg = False
 		# go through and zip only the files that we know for sure are in the manifest
 		with zipfile.ZipFile(outputZip, "w", zipfile.ZIP_DEFLATED) as z:
 			for line in entries[::-1]:
