@@ -42,7 +42,11 @@ def downloadFileDirect(url, dest): #Downloads a file from a URL to a destination
 		with urllib.request.urlopen(url) as response, open(dest, 'wb') as out_file:
 			shutil.copyfileobj(response, out_file)
 	# ensure the modified and accesss times are the same as the birth time
-	createdTime = os.stat(dest).st_birthtime
+	# make sure that birthtime exists before we use it
+	if hasattr(os.stat(dest), 'st_birthtime'):
+		createdTime = os.stat(dest).st_birthtime
+	else:
+		createdTime = os.stat(dest).st_mtime
 	os.utime(dest, (createdTime, createdTime))
 
 def extractArchiveDirect(archive, dest): #Extracts an archive to a destination path on disk
@@ -161,6 +165,7 @@ def main():
 
 	#Package all the things
 	for pkg in pkg_dirs:
+		binaryPath = False
 		#TODO: avoid rebuilding packages that haven't actually changed.
 		#Open and validate pkgbuild
 		try:
@@ -307,6 +312,11 @@ def main():
 				else: print("WARNING: binary path not specified in pkgbuild.json; using: "+binaryPath)
 		if failedPkg:
 			continue
+		
+		if hasattr(os.stat(pkg+binaryPath), 'st_birthtime'):
+			createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_birthtime).strftime('%Y-%m-%d')) if binaryPath else str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_birthtime).strftime('%Y-%m-%d'))
+		else:
+			createdTime = str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_mtime).strftime('%Y-%m-%d')) if binaryPath else str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_mtime).strftime('%Y-%m-%d'))
 
 		# add in the size of the extracted and zipped files
 		repo_extended_info.update({ #repo.json has package info plus extended info
@@ -316,7 +326,7 @@ def main():
 			'sha256': hashlib.sha256(open(config["output_directory"]+"/zips/"+pkg+".zip", "rb").read()).hexdigest(),
 			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime('%Y-%m-%d')),
 			# file birth time of the binary, if present, otherwise any file in the manifest
-			'appCreated': str(datetime.utcfromtimestamp(os.stat(pkg+binaryPath).st_birthtime).strftime('%Y-%m-%d')) if binaryPath else str(datetime.utcfromtimestamp(os.stat(pkg+"/"+entries[0][3:]).st_birthtime).strftime('%Y-%m-%d')),
+			'appCreated': createdTime,
 			'binary': binaryPath if binaryPath else "none",
 			'screens': screenCount,
 			'web_dls': -1, #TODO: get these counts from stats API
