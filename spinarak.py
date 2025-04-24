@@ -309,7 +309,7 @@ def main():
 				for (dirpath, dirnames, filenames) in os.walk(pkg):
 					for file in filenames:
 						if file.endswith(tuple(config["valid_binary_extensions"])):
-							binaryPath=os.path.join(dirpath,file)[os.path.join(dirpath,file).index("/"):]
+							binaryPath=os.path.join(dirpath,file)[os.path.join(dirpath,file).index(os.sep):]
 							broken=True
 							# make sure the filemagic of this isn't Zip
 							with open(os.path.join(dirpath, file), "rb") as f:
