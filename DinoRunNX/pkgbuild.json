@@ -17,12 +17,7 @@
             "type": "zip",
             "zip": [
 							{
-									"path": "/sd/**",
-									"dest": "/",
-									"type": "update"
-							},
-							{
-									"path": "/sd/**/.**/**",
+									"path": "/sd/**/*",
 									"dest": "/",
 									"type": "update"
 							}
