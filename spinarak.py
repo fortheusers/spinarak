@@ -10,7 +10,7 @@ import pathlib
 import zipfile
 import hashlib
 
-version='0.0.9'
+version='0.0.10'
 
 config_default={
 	"ignored_directories": [".git"],
@@ -29,9 +29,6 @@ archiveTypes = set(["zip", "7z", "rar"])
 
 ### Methods, etc.
 def underprint(x): print(x+"\n"+('-'*len(x.strip()))) #Prints with underline. Classy, eh?
-
-def get_size(start_path): #I do love my oneliners. Oneliner to get the size of a directory recursively.
-	return sum([sum([os.path.getsize(os.path.join(dirpath,f)) for f in filenames if not os.path.islink(os.path.join(dirpath,f))]) for dirpath, dirnames, filenames in os.walk(start_path)])
 
 def remove_prefix(text, prefix): #thanks SE for community-standard method, strips prefix from string
     if text.startswith(prefix):
@@ -137,7 +134,7 @@ def main():
 	except:
 		print("Couldn't load config.json; using default configuration.")
 		config=config_default
-	
+
 	if cdnUrl:
 		print(f"INFO: (CI Mode) Downloading existing repo.json from {cdnUrl}")
 		os.makedirs("public", exist_ok=True)
@@ -254,19 +251,24 @@ def main():
 		with open(pkg+"/manifest.install", "w") as f:
 			for line in entries[::-1]:
 				f.write(line + "\n")
-					
+
 		print("manifest.install generated.")
-		print("Package is "+str(get_size(pkg)//1024)+" KiB large.")
 
 		# make the zip dir if it doesn't exist
 		os.makedirs(config["output_directory"]+"/zips", exist_ok=True)
 		outputZip = config["output_directory"]+"/zips/"+pkg+".zip"
+
+		# when going through the zip, we also calculate the file size for each entry added.
+		extractedSize = 0
+
 		# go through and zip only the files that we know for sure are in the manifest
 		with zipfile.ZipFile(outputZip, "w", zipfile.ZIP_DEFLATED) as z:
 			for line in entries[::-1]:
 				line = line.strip()[3:]
-				if os.path.isfile(pkg+"/"+line):
-					z.write(pkg+"/"+line, line)
+				path = pkg+"/"+line
+				if os.path.isfile(path):
+					extractedSize += os.path.getsize(path)
+					z.write(path, line)
 				else:
 					print(f"ERROR: {line} is in the manifest, but does not exist at {pkg}/{line}")
 					failedPackages.append(pkg)
@@ -277,13 +279,14 @@ def main():
 			z.write(pkg+"/manifest.install", "manifest.install")
 		if failedPkg:
 			continue
-		
+
 		print()
 		print("(INFO) Manifest contents:")
 		for line in entries[::-1]:
 			print(line)
 		print()
 
+		print("Package is "+str(extractedSize//1024)+" KiB large.")
 		print("Package written to "+config["output_directory"]+"/zips/"+pkg+".zip")
 		print("Zipped package is "+str(os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024)+" KiB large.")
 
@@ -324,13 +327,13 @@ def main():
 				else: print("WARNING: binary path not specified in pkgbuild.json; using: "+binaryPath)
 		if failedPkg:
 			continue
-		
+
 		# if the manifest is empty, it's a bad package
 		if len(entries) == 0:
 			print(f"ERROR: {pkg} has an empty manifest")
 			failedPackages.append(pkg)
 			continue
-		
+
 		supportsBirthtime = hasattr(os.stat("."), 'st_birthtime')
 		# 2 bools: does our OS support birth times X do we have a binary file
 		if binaryPath:
@@ -348,7 +351,7 @@ def main():
 		# add in the size of the extracted and zipped files
 		repo_extended_info.update({ #repo.json has package info plus extended info
 			'filesize': os.path.getsize(config["output_directory"]+"/zips/"+pkg+".zip")//1024,
-			'extracted': get_size(pkg)//1024,
+			'extracted': extractedSize//1024,
 			'md5': hashlib.md5(open(config["output_directory"]+"/zips/"+pkg+".zip", "rb").read()).hexdigest(),
 			'sha256': hashlib.sha256(open(config["output_directory"]+"/zips/"+pkg+".zip", "rb").read()).hexdigest(),
 			'updated': str(datetime.utcfromtimestamp(os.path.getmtime(pkg+"/pkgbuild.json")).strftime(timestampFormat)),
@@ -377,7 +380,7 @@ def main():
 		with open("updated_packages.txt", "w") as f:
 			f.write(",".join(list(updatedPackages)))
 			print("(CI Mode) Wrote updated packages string to updated_packages.txt")
-	
+
 	print("All done. Enjoy your new repo :)")
 
 	# if we had any failed packages, exit with a non-zero status
