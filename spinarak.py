@@ -53,9 +53,16 @@ def downloadFileDirect(url, dest): #Downloads a file from a URL to a destination
 
 def extractArchiveDirect(archive, dest): #Extracts an archive to a destination path on disk
 	print("(INFO) Extracting "+archive+" to "+dest+"...")
-	if shutil.which("7zz"):
-		print("(INFO) Using 7zz to extract the archive")
-		os.system(f"7zz x {archive} -o{dest}")
+	# check for 7z variants in this order: 7zz (newest), 7z (standard), 7za (standalone)
+	sevenzip_cmd = None
+	for cmd in ["7zz", "7z", "7za"]:
+		if shutil.which(cmd):
+			sevenzip_cmd = cmd
+			break
+	
+	if sevenzip_cmd:
+		print(f"(INFO) using {sevenzip_cmd} to extract the archive")
+		os.system(f"{sevenzip_cmd} x {archive} -o{dest}")
 	else:
 		# this will only work on zips
 		if not zipfile.is_zipfile(archive):
