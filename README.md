@@ -1,10 +1,8 @@
 # Spinarak
 
-![logo](https://cdn.bulbagarden.net/upload/thumb/7/75/167Spinarak.png/100px-167Spinarak.png)
+![logo](https://archives.bulbagarden.net/media/upload/2/2b/0167Spinarak.png)
 
-**Spinarak** is a tool to generate a [libget](https://github.com/vgmoose/libget) repo, given a set of `pkgbuild` files describing packages.
-
-Developed internally by ForTheUsers (4TU) to power the Homebrew App Store, it is the successor to the original `repogen.py` script.
+**Spinarak** is a tool to generate a [libget](https://github.com/vgmoose/libget) repo, given a set of `pkgbuild` files describing packages. Developed for internal use at ForTheUsers to replace the original `repogen.py` script.
 
 It is named after the beloved Pokémon [Spinarak](https://bulbapedia.bulbagarden.net/wiki/Spinarak_(Pok%C3%A9mon)), as it performs the delicate task of wrapping together messy piles of homebrew into a neat web of packages.
 
@@ -38,7 +36,7 @@ A few notes about Spinarak's character and behavior:
 
 #### 3. Host your repository
 
-The output directory is now a complete *libget* repo, ready for static hosting! Use your favorite hosting tool - GitLab Pages works beautifully, for example.
+The output directory is now a complete *libget* repo, which may be statically hosted via any conventional means.
 
 ## Known issues/limitations
 
@@ -48,17 +46,12 @@ The output directory is now a complete *libget* repo, ready for static hosting! 
 
 ## TODO
 
-- Dockerize the crap out of this
 - Link with stats API
-
-## License
-
-Spinarak is licensed under....well, I haven't decided, yet. If you happen to use it before I properly license it, ping us over at https://discord.fortheusers.org.
 
 Contributors:
 - [CompuCat](https://compucat.me/about) - primary development
 - [vgmoose](https://vgmoose.com) - Dockerization, integration with the Homebrew App Store
-- [crc32](https://crc32.dev) and [pwsincd](https://github.com/pwsincd) - Referencing libget formatting
-- [Whovian9369](https://https://cybre.space/@Whovian9369) - Writing documentation
+- [crc32](https://web.archive.org/web/20250427223458/https://crc32.dev/) and [pwsincd](https://github.com/pwsincd) - Referencing libget formatting
+- [Whovian9369](https://digipres.club/@Whovian9369) - Writing documentation
 
 ...and the rest of the 4TU team.
