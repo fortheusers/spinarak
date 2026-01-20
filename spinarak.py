@@ -113,19 +113,35 @@ def handleAsset(pkg, asset, manifest, subasset=False, prepend="\t", screenCount=
 		with tempfile.TemporaryDirectory() as tempdirname:
 			if extractArchiveDirect(asset_file.name, tempdirname):
 				handledSubAssets=0
+				handledSubAssets=0
 				for subasset in asset[archiveType]:
-					for filepath in pathlib.Path(tempdirname).glob(subasset['path'].lstrip("/")):
+					matches = list(pathlib.Path(tempdirname).glob(subasset['path'].lstrip("/")))
+					for filepath in matches:
 						if not os.path.isdir(filepath): #Don't try to handle a directory as an asset - assets must be single files
 							#TODO: check that rstrip to see what other globbable weird characters need stripping
 							filepath = str(filepath)
+							final_dest = None
+							if 'dest' in subasset:
+								# strip the prefix (from our temp dir) to get the relative path
+								rel_path = remove_prefix(filepath, tempdirname+"/"+subasset['path'].lstrip("/").rstrip(".*/"))
+								if rel_path.startswith("/"):
+									# stripping failed, use either single file or multiple file logic based on our match count
+									if len(matches) == 1:
+										final_dest = "/"+subasset['dest'].lstrip("/") # filename is dest
+									else:
+										final_dest = "/"+subasset['dest'].lstrip("/") + "/" + os.path.basename(filepath) # inside the dest folder
+								else:
+									# stripping was successful, so use the path as-is
+									final_dest = "/"+subasset['dest'].lstrip("/") + rel_path
+
 							subassetInfo={
 								'url':filepath,
 								'type':subasset['type'],
-								'dest':("/"+subasset['dest'].lstrip("/")+remove_prefix(filepath, tempdirname+"/"+subasset['path'].lstrip("/").rstrip(".*/"))) if 'dest' in subasset else None
+								'dest': final_dest
 							}
 							retVal |= handleAsset(pkg, subassetInfo, manifest, subasset=True, prepend=prepend+"\t")
 							handledSubAssets+=1
-				if handledSubAssets!=len(asset[archiveType]): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset[archiveType]))+" listed.")
+					if handledSubAssets!=len(asset[archiveType]) and not any(char in subasset['path'] for char in ['*', '?', '[']): print("INFO: discrepancy in subassets handled vs. listed. "+str(handledSubAssets)+" handled, "+str(len(asset[archiveType]))+" listed.")
 			else:
 				print("ERROR: failed to extract zip file.")
 				retVal = False
@@ -316,20 +332,14 @@ def main():
 				print("INFO: binary path not specified. Category is theme, so autofilling \"none\".")
 			else:
 				broken=False
-				for (dirpath, dirnames, filenames) in os.walk(pkg):
-					for file in filenames:
-						if file.endswith(tuple(config["valid_binary_extensions"])):
-							binaryPath=os.path.join(dirpath,file)[os.path.join(dirpath,file).index(os.sep):]
-							broken=True
-							# make sure the filemagic of this isn't Zip
-							with open(os.path.join(dirpath, file), "rb") as f:
-								if f.read(2) == b"PK":
-									print(f"ERROR: {file} is a zip file, not a binary. Check that the pkgbuild is extracting the zip file correctly.")
-									failedPackages.append(pkg)
-									failedPkg = True
-									break
-							break
-						if broken: break
+				# use the manifest entries to find the binary
+				for line in entries:
+					# manifest format is TYPE: path
+					path = line.split(": ", 1)[1].strip()
+					if path.endswith(tuple(config["valid_binary_extensions"])):
+						binaryPath = "/" + path
+						broken=True
+						break
 				if not broken: print("WARNING: "+pkgbuild['info']['title']+"'s binary path not specified in pkgbuild.json, and no binary found!")
 				else: print("WARNING: binary path not specified in pkgbuild.json; using: "+binaryPath)
 		if failedPkg:
